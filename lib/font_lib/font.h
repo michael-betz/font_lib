@@ -38,16 +38,16 @@ typedef struct {
 
     // When loading from a header file, these are pointers to the tables in memory
     // When loading from a .fnt file, these are the file-offsets to the tables.
-    const uint32_t *map_table;  // equal to glyph_description_table when not present
-    const glyph_description_t *glyph_description_table;
-    const uint8_t *glyph_data_table;
+    uint32_t *map_table;  // equal to glyph_description_table when not present
+    glyph_description_t *glyph_description_table;
+    uint8_t *glyph_data_table;
 
     uint16_t linespace;
     // to vertically center the digits, add this to tsb
     int8_t yshift;
     // See FLAG_* enum above
     uint8_t flags;
-    const char *name;
+    char *name;
 } font_header_t;
 
 // Text alignment and horizontal anchor point

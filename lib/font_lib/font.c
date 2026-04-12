@@ -1,5 +1,4 @@
 #include "font.h"
-#include "common.h"
 #include "frame_buffer.h"
 #include <errno.h>
 #include <limits.h>
