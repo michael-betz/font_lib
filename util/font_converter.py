@@ -110,43 +110,7 @@ def get_n_ascii(cp_set):
 import freetype as ft
 
 
-def get_monospace_metrics(face: ft.Face, outline_radius=0):
-    """Calculates fixed cell dimensions and origin offsets for monospace rendering."""
-    if face.is_scalable:
-        ascender = face.size.ascender >> 6
-        descender = face.size.descender >> 6
-        max_advance = face.size.max_advance >> 6
-    else:
-        ascender = face.ascender
-        descender = face.descender
-        max_advance = face.max_advance_width
-
-        if ascender == 0 and descender == 0:
-            ascender = face.bbox.yMax
-            descender = face.bbox.yMin
-        if max_advance == 0:
-            max_advance = face.bbox.xMax - face.bbox.xMin
-
-        if max_advance == 0 and face.num_fixed_sizes > 0:
-            max_advance = face.available_sizes[0].width
-            if ascender == 0 and descender == 0:
-                ascender = face.available_sizes[0].height
-                descender = 0
-
-    cell_width = max_advance + (2 * outline_radius)
-    cell_height = ascender - descender + (2 * outline_radius)
-    origin_x = outline_radius
-    origin_y = ascender + outline_radius
-
-    return {
-        "cell_width": cell_width,
-        "cell_height": cell_height,
-        "origin_x": origin_x,
-        "origin_y": origin_y,
-    }
-
-
-def get_glyph(code: int, face: ft.Face, outline_radius=0, monospace_metrics=None):
+def get_glyph(code: int, face: ft.Face, outline_radius=0):
     """returns a rendered bitmap of a glyph and its metadata
     the bitmap is in 1 bit / pixel or 8 bit / pixel, depending if a true type font or
     a bitmap font was rendered.
@@ -174,83 +138,15 @@ def get_glyph(code: int, face: ft.Face, outline_radius=0, monospace_metrics=None
     if bitmap.pixel_mode not in (ft.FT_PIXEL_MODE_MONO, ft.FT_PIXEL_MODE_GRAY):
         raise NotImplementedError(f"pixel_mode not supported yet: {bitmap.pixel_mode}")
 
-    source_buffer = bytes(bitmap.buffer)
-    source_pitch = bitmap.pitch
-    source_width = bitmap.width
-    source_height = bitmap.rows
-
-    if monospace_metrics:
-        cell_width = monospace_metrics["cell_width"]
-        cell_height = monospace_metrics["cell_height"]
-        origin_x = monospace_metrics["origin_x"]
-        origin_y = monospace_metrics["origin_y"]
-
-        # Calculate the destination coordinates for the source bitmap
-        target_x = origin_x + blyph.left
-        target_y = origin_y - blyph.top
-
-        if bitmap.pixel_mode == ft.FT_PIXEL_MODE_GRAY:
-            target_pitch = cell_width
-            target_buffer = bytearray(target_pitch * cell_height)
-
-            for row in range(source_height):
-                sy = row
-                dy = target_y + sy
-                if 0 <= dy < cell_height:
-                    for col in range(source_width):
-                        sx = col
-                        dx = target_x + sx
-                        if 0 <= dx < cell_width:
-                            target_buffer[dy * target_pitch + dx] = source_buffer[
-                                sy * source_pitch + sx
-                            ]
-
-        elif bitmap.pixel_mode == ft.FT_PIXEL_MODE_MONO:
-            # Monochrome pitch requires rounding up to the nearest byte
-            target_pitch = (cell_width + 7) // 8
-            target_buffer = bytearray(target_pitch * cell_height)
-
-            for row in range(source_height):
-                sy = row
-                dy = target_y + sy
-                if 0 <= dy < cell_height:
-                    for col in range(source_width):
-                        sx = col
-                        dx = target_x + sx
-                        if 0 <= dx < cell_width:
-                            # Extract specific bit from the source
-                            src_byte = source_buffer[sy * source_pitch + (sx // 8)]
-                            src_bit = (src_byte >> (7 - (sx % 8))) & 1
-                            if src_bit:
-                                # Apply the bit to the correct position in the target
-                                target_buffer[dy * target_pitch + (dx // 8)] |= 1 << (
-                                    7 - (dx % 8)
-                                )
-
-        final_buffer = bytes(target_buffer)
-        final_pitch = target_pitch
-        final_width = cell_width
-        final_height = cell_height
-        final_lsb = 0
-        final_tsb = 0
-
-    else:
-        final_buffer = source_buffer
-        final_pitch = source_pitch
-        final_width = source_width
-        final_height = source_height
-        final_lsb = blyph.left
-        final_tsb = blyph.top
-
     props = {
         # number of bytes taken per row
-        "pitch": final_pitch,
+        "pitch": bitmap.pitch,
         # 1 = A monochrome bitmap, using 1 bit per pixel, MSB first,  2 = Each pixel is stored in one byte
         "pixel_mode": bitmap.pixel_mode,
-        "width": final_width,
-        "height": final_height,
-        "lsb": final_lsb,
-        "tsb": final_tsb,
+        "width": bitmap.width,
+        "height": bitmap.rows,
+        "lsb": blyph.left,
+        "tsb": blyph.top,
         "advance_hr": face.glyph.advance.x,
     }
 
@@ -260,7 +156,7 @@ def get_glyph(code: int, face: ft.Face, outline_radius=0, monospace_metrics=None
         props["lsb_hr"] = metrics.horiBearingX
         props["tsb_hr"] = metrics.horiBearingY
 
-    return final_buffer, props
+    return bytes(bitmap.buffer), props
 
 
 def get_y_stats(glyph_props, DISPLAY_HEIGHT=32):
@@ -365,7 +261,7 @@ def convert(args, face: ft.Face, yshift: int, outline_radius=0):
     # --------------------------------------------------
     #  Generate the glyph bitmap data
     # --------------------------------------------------
-    glyph_data = []
+    glyph_data_bs = bytes()
     glyph_props = []
 
     for ol_radius in outlines:
@@ -374,24 +270,18 @@ def convert(args, face: ft.Face, yshift: int, outline_radius=0):
         else:
             print(f"    * exporting outline glyphs. Radius: {ol_radius / 32:.1f} px")
 
-        if args.monospace:
-            monospace_metrics = get_monospace_metrics(face, outline_radius=ol_radius)
-            print("monospace_metrics:", monospace_metrics)
-        else:
-            monospace_metrics = None
-
         for code in cp_set:
             buf, props = get_glyph(
                 chr(code),
                 face,
                 outline_radius=ol_radius,
-                monospace_metrics=monospace_metrics,
             )
             if props["pixel_mode"] == ft.FT_PIXEL_MODE_GRAY and args.four_bpp:
                 buf = eight_to_four(buf)
             props["cp"] = code
+            props["start_index"] = len(glyph_data_bs)
             glyph_props.append(props)
-            glyph_data.append(buf)
+            glyph_data_bs += buf
 
     # --------------------------------------------------
     #  Generate the codepoint to glyph mapping table
@@ -401,6 +291,7 @@ def convert(args, face: ft.Face, yshift: int, outline_radius=0):
     map_table = cp_set[ascii_map_n:]
     print(f"    ascii_map_start: 0x{ascii_map_start:02x}, ascii_map_n: {ascii_map_n}")
     print(f"    map_table: {len(map_table)} 32 bit words")
+    print("    glyph_data:", len(glyph_data_bs), "bytes")
 
     # --------------------------------------------------
     #  Collect header info
@@ -416,8 +307,8 @@ def convert(args, face: ft.Face, yshift: int, outline_radius=0):
     flags = FLAGS(0)
     if outline_radius > 0:
         flags |= FLAGS.HAS_OUTLINE
-    if args.monospace:
-        flags |= FLAGS.MONOSPACE
+    # if args.monospace:
+    #     flags |= FLAGS.MONOSPACE
     pix_mode = glyph_props[0]["pixel_mode"]
     if pix_mode == ft.FT_PIXEL_MODE_MONO:
         pass
@@ -441,12 +332,12 @@ def convert(args, face: ft.Face, yshift: int, outline_radius=0):
         "ascii_map_n": ascii_map_n,
     }
 
-    return glyph_props, glyph_data, map_table, header
+    return glyph_props, glyph_data_bs, map_table, header
 
 
 def export_as_fnt(
     glyph_props: list[dict],
-    glyph_data: list[bytes],
+    glyph_data_bs: bytes,
     map_table: list[int],
     header: dict,
     out_name: str,
@@ -455,9 +346,7 @@ def export_as_fnt(
     #  Generate the glyph description table
     # --------------------------------------------------
     glyph_description_bs = bytes()
-    glyph_data_bs = bytes()
-    for i, (props, data) in enumerate(zip(glyph_props, glyph_data)):
-        props["start_index"] = len(glyph_data_bs)
+    for i, props in enumerate(glyph_props):
         bs = pack(
             FMT_GLYPH_DESCRIPTION,
             props["width"],
@@ -470,9 +359,7 @@ def export_as_fnt(
         # Produce only a single entry in monospace mode. All glyphs are the same.
         if i == 0 or FLAGS.MONOSPACE not in header["flags"]:
             glyph_description_bs += bs
-        glyph_data_bs += data
         # TODO handle StructError for some glyphs
-    print("    glyph_data:", len(glyph_data_bs), "bytes")
     print("    glyph_desc:", len(glyph_description_bs), "bytes")
 
     # map_table: Convert int to 4 bytes
@@ -516,20 +403,11 @@ def export_as_fnt(
 
 def export_as_header(
     glyph_props: list[dict],
-    glyph_data: list[bytes],
+    glyph_data_bs: bytes,
     map_table: list[int],
     header: dict,
     out_name: str,
 ):
-    # --------------------------------------------------
-    #  Generate the glyph description table
-    # --------------------------------------------------
-    glyph_data_bs = bytes()
-    for props, data in zip(glyph_props, glyph_data):
-        props["start_index"] = len(glyph_data_bs)
-        glyph_data_bs += data
-    print("    glyph_data:", len(glyph_data_bs), "bytes")
-
     name = header["name"]
 
     with open(out_name, "w") as f:
@@ -598,6 +476,76 @@ const font_t f_{name} = {{
     )
 
 
+def glyp_to_img(p: dict, glyph_data_bs: bytes, color=0xFFFFFFFF):
+    start_ind = p["start_index"]
+    end_ind = start_ind + p["width"] * p["height"]
+    bs = glyph_data_bs[start_ind:end_ind]
+
+    if p["pixel_mode"] == ft.FT_PIXEL_MODE_MONO:
+        # convert 8 pixel / byte buffer to 1 pixel / byte
+        bs_ = bytearray(p["width"] * p["height"])
+        for y in range(p["height"]):
+            for x in range(p["width"]):
+                src = bs[y * p["pitch"] + x // 8]
+                bit = (src >> (7 - x)) & 1
+                bs_[p["width"] * y + x] = bit * 0xFF
+    elif p["pixel_mode"] == ft.FT_PIXEL_MODE_GRAY:
+        bs_ = bs
+    else:
+        NotImplementedError("pixel mode not supported")
+
+    img = Image.frombuffer("L", (p["width"], p["height"]), bs_)
+    img_ = Image.new("RGBA", img.size, color)
+    img_.putalpha(img)
+    return img_
+
+
+def export_as_png(
+    glyph_props: list[dict],
+    glyph_data_bs: bytes,
+    header: dict,
+    out_name: str,
+):
+    all_inds = range(len(glyph_props))
+    layers = []
+    if FLAGS.HAS_OUTLINE in header["flags"]:
+        # Draw the upper half of the glyphs in white (outline)
+        # then the lower half in black on top (fill)
+        l = len(glyph_props) // 2
+        layers += [all_inds[l:], all_inds[:l]]
+        colors = [0xFFFFFFFF, 0xFF000000]
+    else:
+        # Draw all glyphs in white (fill only)
+        layers += [all_inds]
+        colors = [0xFFFFFFFF]
+
+    total_advance = 0
+    for ind in layers[0]:
+        total_advance += glyph_props[ind]["advance_hr"] // 64
+
+    img_all = Image.new(
+        "RGBA", (total_advance + 8, int(header["linespace"] * 1.5)), 0xFF000000
+    )
+
+    for layer, color in zip(
+        layers, colors
+    ):  # for potential outline layer and fill layer
+        cur_x = 4
+        for ind in layer:  # for each glyph
+            p = glyph_props[ind]
+            img_all.alpha_composite(
+                glyp_to_img(p, glyph_data_bs, color),
+                (
+                    cur_x + p["lsb"],
+                    -p["tsb"] + header["linespace"],
+                ),
+            )
+            cur_x += p["advance_hr"] // 64
+
+    img_all.save(out_name, "PNG")
+    print("wrote", out_name)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawTextHelpFormatter
@@ -664,11 +612,11 @@ def main():
         action="store_true",
         help="Convert 8-bit greyscale to 4-bit greyscale",
     )
-    parser.add_argument(
-        "--monospace",
-        action="store_true",
-        help="In monospace mode, all glyphs are forced to the same properties",
-    )
+    # parser.add_argument(
+    #     "--monospace",
+    #     action="store_true",
+    #     help="In monospace mode, all glyphs are forced to the same properties",
+    # )
 
     args = parser.parse_args()
 
@@ -697,10 +645,6 @@ def main():
     else:
         tmp = re.sub("[^A-Za-z0-9]+", "_", face.family_name.decode().lower())
         out_name = (out_name / tmp).with_suffix(f_ending)
-    out_name_png = out_name.with_suffix(".png")
-    # if out_name.is_file():
-    #     print("file exists")
-    #     exit(0)
 
     if args.fnt:
         print(f"\nGenerating binary .fnt file ...")
@@ -708,6 +652,8 @@ def main():
     else:
         print(f"\nGenerating C-header .h file ...")
         export_as_header(glyph_props, glyph_data, map_table, header, str(out_name))
+
+    export_as_png(glyph_props, glyph_data, header, str(out_name.with_suffix(".png")))
 
 
 if __name__ == "__main__":
