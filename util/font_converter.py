@@ -9,7 +9,8 @@ import argparse
 from pathlib import Path
 from struct import pack, calcsize
 import struct
-from PIL import Image
+from sys import flags
+from PIL import Image, ImageDraw
 from glob import glob
 import freetype as ft
 
@@ -54,8 +55,9 @@ class FLAGS(Flag):
     MONOSPACE = 1 << 3
 
 
-def get_next_filename(out_dir, file_ending=".fnt"):
-    fnt_files = glob(str(out_dir / "*" + file_ending))
+def get_next_filename(out_dir: Path, file_ending=".fnt"):
+    """expects files with 3 numerical digits in out_dir. Returns the next free name"""
+    fnt_files = glob(str((out_dir / "*").with_suffix(file_ending)))
 
     for i in range(1000):
         fname = out_dir / f"{i:03d}{file_ending}"
@@ -63,7 +65,8 @@ def get_next_filename(out_dir, file_ending=".fnt"):
             return fname
 
 
-def get_all_cps(face):
+def get_all_cps(face: ft.Face):
+    """return all supported code-points of the font"""
     all_cps = []
     all_cps.append(face.get_first_char()[0])
 
@@ -74,9 +77,9 @@ def get_all_cps(face):
     return all_cps
 
 
-def get_cp_set(args, face):
-    """assemble the set of code-points to convert"""
-    cp_set = set()
+def get_cp_set(args: argparse.Namespace, face: ft.Face):
+    """assemble the set of code-points to convert, depending on args"""
+    cp_set: set[int] = set()
 
     if args.add_all:
         cp_set.update(get_all_cps(face))
@@ -96,7 +99,7 @@ def get_cp_set(args, face):
     return sorted(cp_set)
 
 
-def get_n_ascii(cp_set):
+def get_n_ascii(cp_set: list):
     """how many characters correspond to the basic ascii scheme?"""
     first_char = 0
     for i, cp in enumerate(cp_set):
@@ -107,27 +110,14 @@ def get_n_ascii(cp_set):
     return (first_char, len(cp_set))
 
 
-import freetype as ft
-
-
-def get_glyph(code: int, face: ft.Face, outline_radius=0):
+def get_glyph(code: int, face: ft.Face):
     """returns a rendered bitmap of a glyph and its metadata
     the bitmap is in 1 bit / pixel or 8 bit / pixel, depending if a true type font or
     a bitmap font was rendered.
     """
     face.select_charmap(ft.FT_ENCODING_UNICODE)
-
-    if outline_radius > 0:
-        stroker = ft.Stroker()
-        stroker.set(
-            outline_radius, ft.FT_STROKER_LINECAP_ROUND, ft.FT_STROKER_LINEJOIN_ROUND, 0
-        )
-        face.load_char(code, ft.FT_LOAD_DEFAULT | ft.FT_LOAD_NO_BITMAP)
-        glyph = face.glyph.get_glyph()
-        glyph.stroke(stroker, True)
-    else:
-        face.load_char(code, ft.FT_LOAD_DEFAULT)
-        glyph = face.glyph.get_glyph()
+    face.load_char(code, ft.FT_LOAD_DEFAULT)
+    glyph = face.glyph.get_glyph()
 
     # these values are not valid for outline mode
     metrics = face.glyph.metrics
@@ -148,85 +138,16 @@ def get_glyph(code: int, face: ft.Face, outline_radius=0):
         "lsb": blyph.left,
         "tsb": blyph.top,
         "advance_hr": face.glyph.advance.x,
+        "height_hr": metrics.height,
+        "lsb_hr": metrics.horiBearingX,
+        "tsb_hr": metrics.horiBearingY,
     }
-
-    if outline_radius == 0:
-        # these metrics are only valid if the Stroker() is not used
-        props["height_hr"] = metrics.height
-        props["lsb_hr"] = metrics.horiBearingX
-        props["tsb_hr"] = metrics.horiBearingY
 
     return bytes(bitmap.buffer), props
 
 
-def get_y_stats(glyph_props, DISPLAY_HEIGHT=32):
-    """
-    for the given list of glyph properties, returns their
-      * maximum bounding box height (need to divide by 64)
-      * y-shift needed to center the bounding box (need to divide by 64)
-    """
-    us = []
-    ls = []
-    for p in glyph_props:
-        y_max = p["tsb_hr"]
-        y_min = p["tsb_hr"] - p["height"] * 64
-        # print(f'{y_max:3d}  {y_min:3d}')
-        us.append(y_max)
-        ls.append(y_min)
-
-    bb_up = max(us)
-    bb_down = min(ls)
-    bb_mid = (bb_up + bb_down) / 2
-
-    bb_height = bb_up - bb_down
-    yshift = round(DISPLAY_HEIGHT * 64 / 2 - bb_mid)
-
-    return bb_height, yshift
-
-
-def auto_tune_font_size(face, args):
-    """
-    Find the correct char_size to fill the whole height of the display
-    returns
-      * char_size for face.set_char_size(height=char_size)
-      * fractional yshift (needs to be divided by 64)
-    """
-    print("\nTuning font size ...")
-    char_size = int(args.font_height * 64)
-    yshift = 0
-
-    for i in range(16):
-        face.set_char_size(height=char_size)
-        props = [get_glyph(c, face)[1] for c in args.test_string]
-        bb_height, yshift = get_y_stats(props)
-        print(
-            f"    height: {char_size / 64:4.1f} --> {bb_height / 64:4.1f}, {yshift / 64:.1f}"
-        )
-        err = args.font_height * 64 - bb_height
-        if err == 0:
-            print("    👍")
-            break
-        char_size += round(err / 2)
-
-    # Make sure the width of the digits (88:88) fits on the display
-    for i in range(8):
-        advs = [p["advance_hr"] for p in props]
-        w_clock = 4 * max(advs[:-1]) + advs[-1]
-        margin = args.max_width * 64 - w_clock
-        print(f"    width:  {char_size / 64:4.1f} --> {w_clock / 64:.1f}")
-        if margin > 0:
-            print("    👍")
-            break
-
-        char_size += margin // 4
-        face.set_char_size(height=char_size)
-        props = [get_glyph(c, face)[1] for c in args.test_string]
-        bb_height, yshift = get_y_stats(props)
-
-    return char_size, yshift
-
-
 def print_table(vals, w=24, w_v=3, f=None):
+    """helper to generate arrays in .h files"""
     ll = len(vals) - 1
     for i, g in enumerate(vals):
         if i > 0 and (i % w) == 0:
@@ -237,26 +158,28 @@ def print_table(vals, w=24, w_v=3, f=None):
     print("\n};\n", file=f)
 
 
-def eight_to_four(buf):
+def eight_to_four(buf: bytes):
     """Pack two pixels in one output byte"""
     return bytes(
         (buf[i * 2] & 0xF0) | (buf[i * 2 + 1] >> 4) for i in range(len(buf) // 2)
     )
 
 
-def convert(args, face: ft.Face, yshift: int, outline_radius=0):
+def four_to_eight(buf: bytes):
+    """Unpack two 4-bit pixels into two output bytes"""
+    return bytes(
+        (buf[i // 2] & 0xF0) if i & 1 else (buf[i // 2] & 0xF) << 4
+        for i in range(len(buf) * 2)
+    )
+
+
+def convert(args: argparse.Namespace, face: ft.Face):
     """
-    If outline_radius is > 0 it will add the normal glyphs to the font and in
-    addition the outline glyphs with the set stroke width.
+    Render all selected glyphs into bitmaps. Return them as bytes and their metadata as a dict.
     """
     cp_set = get_cp_set(args, face)
     if len(cp_set) == 0:
         raise RuntimeError("No glyphs selected to convert")
-
-    outlines = [0]
-    if outline_radius > 0:
-        # If we want outlines, we export all glyphs twice!
-        outlines.append(outline_radius)
 
     # --------------------------------------------------
     #  Generate the glyph bitmap data
@@ -264,24 +187,14 @@ def convert(args, face: ft.Face, yshift: int, outline_radius=0):
     glyph_data_bs = bytes()
     glyph_props = []
 
-    for ol_radius in outlines:
-        if ol_radius == 0:
-            print("    * exporting normal glyphs")
-        else:
-            print(f"    * exporting outline glyphs. Radius: {ol_radius / 32:.1f} px")
-
-        for code in cp_set:
-            buf, props = get_glyph(
-                chr(code),
-                face,
-                outline_radius=ol_radius,
-            )
-            if props["pixel_mode"] == ft.FT_PIXEL_MODE_GRAY and args.four_bpp:
-                buf = eight_to_four(buf)
-            props["cp"] = code
-            props["start_index"] = len(glyph_data_bs)
-            glyph_props.append(props)
-            glyph_data_bs += buf
+    for code in cp_set:
+        buf, props = get_glyph(chr(code), face)
+        if props["pixel_mode"] == ft.FT_PIXEL_MODE_GRAY and args.four:
+            buf = eight_to_four(buf)
+        props["cp"] = code
+        props["start_index"] = len(glyph_data_bs)
+        glyph_props.append(props)
+        glyph_data_bs += buf
 
     # --------------------------------------------------
     #  Generate the codepoint to glyph mapping table
@@ -301,19 +214,20 @@ def convert(args, face: ft.Face, yshift: int, outline_radius=0):
 
     if ls == 0:
         print("WARNING!! Setting linespace to 8")
+        import pdb
+
+        pdb.set_trace()
         ls = 8
 
     # Set the flags bits
     flags = FLAGS(0)
-    if outline_radius > 0:
-        flags |= FLAGS.HAS_OUTLINE
     # if args.monospace:
     #     flags |= FLAGS.MONOSPACE
     pix_mode = glyph_props[0]["pixel_mode"]
     if pix_mode == ft.FT_PIXEL_MODE_MONO:
         pass
     elif pix_mode == ft.FT_PIXEL_MODE_GRAY:
-        if args.four_bpp:
+        if args.four:
             flags |= FLAGS.PIX_FORMAT_B
         else:
             flags |= FLAGS.PIX_FORMAT_A
@@ -326,7 +240,6 @@ def convert(args, face: ft.Face, yshift: int, outline_radius=0):
     header = {
         "name": face.family_name.decode(),
         "linespace": ls,
-        "yshift": yshift,
         "flags": flags,
         "ascii_map_start": ascii_map_start,
         "ascii_map_n": ascii_map_n,
@@ -382,7 +295,7 @@ def export_as_fnt(
         glyph_description_offset,
         glyph_data_offset,
         header["linespace"],
-        header["yshift"] // 64,
+        0,  # header["yshift"] // 64,
         header["flags"].value,
     )
 
@@ -452,7 +365,10 @@ static const glyph_dsc_t glyph_dsc_{name}[{len(glyph_props)}] = {{""",
             )
             print_table(map_table, w=19, w_v=6, f=f)
 
-        flag_str = " | ".join([f.name for f in header["flags"]])
+        if header["flags"] == FLAGS(0):
+            flag_str = "0"
+        else:
+            flag_str = " | ".join([f.name for f in header["flags"]])
         print(
             f"""\
 const font_t f_{name} = {{
@@ -462,8 +378,8 @@ const font_t f_{name} = {{
     .map_start = {header['ascii_map_start']},
     .map_n = {header['ascii_map_n']},
     .map_table = {cp_table_name},
-    .glyph_description_table = glyph_dsc_{name};
-    .glyph_data_table = glyphs_{name};
+    .glyph_description_table = glyph_dsc_{name},
+    .glyph_data_table = glyphs_{name},
     .flags = {flag_str},
     .name = \"{header['name']}\"
 }};
@@ -476,10 +392,16 @@ const font_t f_{name} = {{
     )
 
 
-def glyp_to_img(p: dict, glyph_data_bs: bytes, color=0xFFFFFFFF):
+def glyp_to_img(header: dict, p: dict, glyph_data_bs: bytes, color=0xFFFFFFFF):
     start_ind = p["start_index"]
-    end_ind = start_ind + p["width"] * p["height"]
-    bs = glyph_data_bs[start_ind:end_ind]
+
+    # Convert 4 bit mode back to 8 bit mode
+    if FLAGS.PIX_FORMAT_B in header["flags"]:
+        end_ind = start_ind + (p["width"] * p["height"] // 2 + 1)
+        bs = four_to_eight(glyph_data_bs[start_ind:end_ind])
+    else:
+        end_ind = start_ind + p["width"] * p["height"]
+        bs = glyph_data_bs[start_ind:end_ind]
 
     if p["pixel_mode"] == ft.FT_PIXEL_MODE_MONO:
         # convert 8 pixel / byte buffer to 1 pixel / byte
@@ -487,7 +409,7 @@ def glyp_to_img(p: dict, glyph_data_bs: bytes, color=0xFFFFFFFF):
         for y in range(p["height"]):
             for x in range(p["width"]):
                 src = bs[y * p["pitch"] + x // 8]
-                bit = (src >> (7 - x)) & 1
+                bit = (src >> (7 - (x % 8))) & 1
                 bs_[p["width"] * y + x] = bit * 0xFF
     elif p["pixel_mode"] == ft.FT_PIXEL_MODE_GRAY:
         bs_ = bs
@@ -507,40 +429,46 @@ def export_as_png(
     out_name: str,
 ):
     all_inds = range(len(glyph_props))
-    layers = []
-    if FLAGS.HAS_OUTLINE in header["flags"]:
-        # Draw the upper half of the glyphs in white (outline)
-        # then the lower half in black on top (fill)
-        l = len(glyph_props) // 2
-        layers += [all_inds[l:], all_inds[:l]]
-        colors = [0xFFFFFFFF, 0xFF000000]
-    else:
-        # Draw all glyphs in white (fill only)
-        layers += [all_inds]
-        colors = [0xFFFFFFFF]
 
+    print(glyph_props[0])
+
+    # Measure the width needed to print all the glyphs
     total_advance = 0
-    for ind in layers[0]:
+    for ind in all_inds:
         total_advance += glyph_props[ind]["advance_hr"] // 64
 
     img_all = Image.new(
         "RGBA", (total_advance + 8, int(header["linespace"] * 1.5)), 0xFF000000
     )
 
-    for layer, color in zip(
-        layers, colors
-    ):  # for potential outline layer and fill layer
-        cur_x = 4
-        for ind in layer:  # for each glyph
-            p = glyph_props[ind]
-            img_all.alpha_composite(
-                glyp_to_img(p, glyph_data_bs, color),
-                (
-                    cur_x + p["lsb"],
-                    -p["tsb"] + header["linespace"],
-                ),
-            )
-            cur_x += p["advance_hr"] // 64
+    # Draw a red line where the font baseline is
+    draw = ImageDraw.Draw(img_all)
+    draw.line(
+        (0, header["linespace"], img_all.size[0], header["linespace"]), fill=0xFF0000FF
+    )
+
+    cur_x = 4
+    for ind in all_inds:  # for each glyph
+        p = glyph_props[ind]
+        # Draw the bitmap bounding box in blue
+        draw.rectangle(
+            (
+                cur_x + p["lsb"],
+                -p["tsb"] + header["linespace"],
+                cur_x + p["lsb"] + p["width"],
+                -p["tsb"] + header["linespace"] + p["height"],
+            ),
+            outline=0xFF880000,
+        )
+        # Place the glyph in the same location as font.c would
+        img_all.alpha_composite(
+            glyp_to_img(header, p, glyph_data_bs, 0xFFFFFFFF),
+            (
+                cur_x + p["lsb"],
+                -p["tsb"] + header["linespace"],
+            ),
+        )
+        cur_x += p["advance_hr"] // 64
 
     img_all.save(out_name, "PNG")
     print("wrote", out_name)
@@ -551,31 +479,9 @@ def main():
         description=__doc__, formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument(
-        "--font-height",
-        default=30.0,
+        "--height",
         type=float,
-        help="Target height of the digits. Only used for vector inputs. default = 30 pixels",
-    )
-    parser.add_argument(
-        "--tune-size",
-        action="store_true",
-        help="Tune the font-size such that they look good on the Espirgbani LED clock.",
-    )
-    parser.add_argument(
-        "--max-width",
-        default=128,
-        help="Maximum width of 4 times the widest digit. Default: 128 pixels. Only used with --tune-size.",
-    )
-    parser.add_argument(
-        "--test-string",
-        default="0123456789:",
-        help="Test string to use to tune the target digit height. Only used with --tune-size.",
-    )
-    parser.add_argument(
-        "--outline-radius",
-        default=0,
-        type=int,
-        help="If > 0, will add the outline glyphs. Doubles the number of glyphs in the font. [pixels / 64], default = 0.",
+        help="Target height of the glyphs. Default for vector fonts: 30 pixels",
     )
     parser.add_argument(
         "--add-numerals",
@@ -608,9 +514,9 @@ def main():
         help="Write a binary .fnt file instead instead of a .h",
     )
     parser.add_argument(
-        "--four_bpp",
+        "--four",
         action="store_true",
-        help="Convert 8-bit greyscale to 4-bit greyscale",
+        help="Convert 8-bit greyscale to 4-bit greyscale. Ignored for 1 bit bitmap font inputs.",
     )
     # parser.add_argument(
     #     "--monospace",
@@ -620,21 +526,24 @@ def main():
 
     args = parser.parse_args()
 
-    # Load an existing font file
+    # Load an existing font file and set its size to user input / a reasonable default
     face = ft.Face(args.fontfile)
-
-    # determine its optimum size
-    yshift = 0
-    if face.is_scalable:
-        char_size = int(args.font_height * 64)
-        if args.tune_size:
-            char_size, yshift = auto_tune_font_size(face, args)
-        face.set_char_size(height=char_size)
+    if args.height is None:
+        if face.is_scalable:
+            args.height = 30
+        else:
+            args.height = face.available_sizes[-1].height
+    try:
+        face.set_char_size(height=int(args.height * 64))
+    except ft.FT_Exception:
+        print(
+            "ERROR: Selected height not one of the supported ones:",
+            ",".join([str(ho.height) for ho in face.available_sizes]),
+        )
+        exit(-1)
 
     # generate bitmap font
-    glyph_props, glyph_data, map_table, header = convert(
-        args, face, yshift, args.outline_radius
-    )
+    glyph_props, glyph_data, map_table, header = convert(args, face)
 
     # Generate the output file name
     out_name = Path("fnt/")
