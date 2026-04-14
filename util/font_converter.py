@@ -616,6 +616,7 @@ def main():
 
     # generate bitmap font
     glyph_props, glyph_data, map_table, header = convert(args, face)
+    print(glyph_props[0])
     header["clean_name"] = re.sub(
         "[^A-Za-z0-9]+", "_", face.family_name.decode().lower()
     )

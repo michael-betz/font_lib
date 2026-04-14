@@ -56,7 +56,7 @@ typedef struct {
 bool init_from_file(const char *filePrefix);
 #endif
 
-bool init_from_header(const font_header_t *header);
+void init_from_header(const font_header_t *header);
 
 // draws a string of length `n` into `layer`
 // to center it use x_a = 0 and

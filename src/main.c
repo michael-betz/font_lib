@@ -2,11 +2,13 @@
 #include "frame_buffer.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_blendmode.h>
+#include <fixed.h>
+#include <lastapprenticebo.h>
+#include <lemon.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <time.h>
-#include <vollkorn.h>
 
 #define ZOOM 4
 
@@ -47,12 +49,10 @@ static void init_sdl() {
     SDL_SetTextureBlendMode(layer_a, SDL_BLENDMODE_NONE);
 }
 
-extern const font_header_t f_vollkorn;
+// extern const font_header_t f_vollkorn;
 
 int main(int argc, char *args[]) {
     init_sdl();
-
-    init_from_header(&f_vollkorn);
 
     bool is_running = true;
     unsigned frame = 0;
@@ -83,9 +83,10 @@ int main(int argc, char *args[]) {
         printf("%d\n", frame);
 
         if (frame == 0) {
+            init_from_header(&f_fixed);
             set_draw_mode(DRAW_ADD);
-            push_str(FB_WIDTH / 2, FB_HEIGHT / 2 - 21, "Hel(l)o Wo[r]ld", 99, A_CENTER);
-            push_str(FB_WIDTH / 2, FB_HEIGHT / 2 + 21, "Q^uatschuQuench!!", 99, A_CENTER);
+            push_str(FB_WIDTH / 2, FB_HEIGHT / 2 - 8, "Hel(l)o Wo[r]ld", 99, A_CENTER);
+            push_str(FB_WIDTH / 2, FB_HEIGHT / 2 + 8, "Q^uatschuQuench!!", 99, A_CENTER);
         }
 
         // Copy font_lib frame buffer to sdl texture

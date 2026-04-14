@@ -300,7 +300,7 @@ uint8_t *get_bitmap_buff_from_file(const glyph_description_t *desc) {
 }
 #endif  // FNT_SUPPORT
 
-bool init_from_header(const font_header_t *header) {
+void init_from_header(const font_header_t *header) {
 #ifdef FNT_SUPPORT
     freeFont();
 #endif
@@ -329,9 +329,9 @@ glyphToBuffer(int glyph_index, const glyph_description_t *desc, int offs_x, int 
     if (fntFile)
         buff = get_bitmap_buff_from_file(start_index, end_index);
     else
-        buff = &fntHeader->glyph_data_table[desc->start_index];
+        buff = &fntHeader->glyph_data_table[start_index];
 #else
-    buff = &fntHeader->glyph_data_table[desc->start_index];
+    buff = &fntHeader->glyph_data_table[start_index];
 #endif
 
     if (buff == NULL) {
@@ -350,7 +350,7 @@ glyphToBuffer(int glyph_index, const glyph_description_t *desc, int offs_x, int 
             }
             // Output in_bpp bits from the left and draw this pixel
             unsigned out_val = tmp_byte >> (8 - bpp);
-            draw_pixel(x + offs_x, y + offs_y, out_val);
+            draw_pixel(x + offs_x, y + offs_y, out_val * 0xFF);
 
             // drop the bits we have just output
             tmp_byte = (tmp_byte << bpp) & 0xFF;
@@ -376,8 +376,10 @@ static void push_char(unsigned codepoint) {
         return;
 
     desc = get_glyph_description(glyph_index);
-    if (desc == NULL)
+    if (desc == NULL) {
+        printf("No glyph description found!\n");
         return;
+    }
 
     printf("push_char(%c, %d, %d)\n", (char)codepoint, cursor_x + desc->lsb, cursor_y - desc->tsb);
     glyphToBuffer(glyph_index, desc, cursor_x + desc->lsb, cursor_y - desc->tsb);
