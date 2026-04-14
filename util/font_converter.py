@@ -406,7 +406,7 @@ def export_as_header(
             f"""\
 #include <stdint.h>
 #include <stdio.h>
-#include <font_draw.h>
+#include <font.h>
 // -----------------------------------
 //  {header["name"]}
 // -----------------------------------
@@ -419,7 +419,7 @@ static const uint8_t glyphs_{name}[{len(glyph_data_bs)}] = {{""",
         print(
             f"""\
 // GLYPH DESCRIPTION
-static const glyph_dsc_t glyph_dsc_{name}[{len(glyph_props)}] = {{""",
+static const glyph_description_t glyph_dsc_{name}[{len(glyph_props)}] = {{""",
             file=f,
         )
         for props in glyph_props:
@@ -446,10 +446,10 @@ static const glyph_dsc_t glyph_dsc_{name}[{len(glyph_props)}] = {{""",
         if header["flags"] == FLAGS(0):
             flag_str = "0"
         else:
-            flag_str = " | ".join([f.name for f in header["flags"]])
+            flag_str = " | ".join(["FLAG_" + f.name for f in header["flags"]])
         print(
             f"""\
-const font_t f_{name} = {{
+const font_header_t f_{name} = {{
     .magic = 0x005A54BE,
     .n_glyphs = {header['n_glyphs']},
     .map_start = {header['ascii_map_start']},

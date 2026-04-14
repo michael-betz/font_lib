@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <time.h>
+#include <vollkorn.h>
 
 #define ZOOM 2
 

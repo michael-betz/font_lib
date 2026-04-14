@@ -160,7 +160,6 @@ static void post_init() {
     printf("map_start: %d\n", fntHeader->map_start);
     printf("map_n: %d\n", fntHeader->map_n);
     printf("linespace: %d\n", fntHeader->linespace);
-    printf("yshift: %d\n", fntHeader->yshift);
     printf("flags: %x\n", fntHeader->flags);
     printf("pix_mode: %d\n", pix_mode);
 }
@@ -392,7 +391,7 @@ static int get_char_width(unsigned codepoint) {
     if (glyph_index < 0)
         return 0;
 
-    desc = get_glyph_description(glyph_index, false);
+    desc = get_glyph_description(glyph_index);
     if (desc == NULL)
         return 0;
 

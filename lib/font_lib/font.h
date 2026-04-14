@@ -42,7 +42,7 @@ typedef struct {
     glyph_description_t *glyph_description_table;
     uint8_t *glyph_data_table;
     uint16_t linespace;
-    uint8_t flags; // See FLAG_* enum above
+    uint8_t flags;  // See FLAG_* enum above
     char *name;
 } font_header_t;
 
@@ -61,13 +61,11 @@ bool init_from_header(const font_header_t *header);
 // draws a string of length `n` into `layer`
 // to center it use x_a = 0 and
 // colors cOutline and cFill
-void push_str(int x_a,         // x-offset of the anchor point in pixels
-              int y_a,         // y-offset in pixels
-              const char *c,   // the UTF8 string to draw (can be zero terminated)
-              unsigned n,      // length of the string
-              unsigned align,  // Anchor point. One of A_LEFT, A_CENTER, A_RIGHT
-              bool is_outline  // draw the outline glyphs if True, otherwise the
-                               // fill glyphs
+void push_str(int x_a,        // x-offset of the anchor point in pixels
+              int y_a,        // y-offset in pixels
+              const char *c,  // the UTF8 string to draw (can be zero terminated)
+              unsigned n,     // length of the string
+              unsigned align  // Anchor point. One of A_LEFT, A_CENTER, A_RIGHT
 );
 
 // This needs to be implemented by the framebuffer:
