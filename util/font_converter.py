@@ -50,7 +50,7 @@ class FLAGS(IntFlag):
     # Not supported by this tool (yet)
     HAS_OUTLINE = 1 << 0
 
-    # Pixel format_B/_A: 00 = 1 bit, 01 = 8 bit monochrome, 10 = 4 bit monochrome
+    # Pixel format_B/_A: bits per pixel: 0b00 = 1 bit, 0b01 = 2 bit, 0b10 = 4 bit, 0b11 = 8 bit
     PIX_FORMAT_A = 1 << 1
     PIX_FORMAT_B = 1 << 2
 
@@ -272,10 +272,8 @@ def convert(args: argparse.Namespace, face: ft.Face):
     for code in cp_set:
         buf, props = get_glyph(args, chr(code), face)
 
-        if args.force1bpp:
-            buf = eight_to_N(buf, props["width"], props["height"], 1)
-        elif args.force4bpp:
-            buf = eight_to_N(buf, props["width"], props["height"], 4)
+        if args.bpp != 8:
+            buf = eight_to_N(buf, props["width"], props["height"], args.bpp)
 
         props["cp"] = code
         props["start_index"] = len(glyph_data_bs)
@@ -299,12 +297,15 @@ def convert(args: argparse.Namespace, face: ft.Face):
     flags = FLAGS(0)
     # if args.monospace:
     #     flags |= FLAGS.MONOSPACE
-    if args.force1bpp:  # 1 bpp
+    if args.bpp == 1:
         pass
-    elif args.force4bpp:  # 4 bpp
-        flags |= FLAGS.PIX_FORMAT_B
-    else:  # 8 bpp
+    elif args.bpp == 2:
         flags |= FLAGS.PIX_FORMAT_A
+    elif args.bpp == 4:
+        flags |= FLAGS.PIX_FORMAT_B
+    elif args.bpp == 8:
+        flags |= FLAGS.PIX_FORMAT_A
+        flags |= FLAGS.PIX_FORMAT_B
 
     header = {
         "name": face.family_name.decode(),
@@ -463,8 +464,7 @@ const font_t f_{name} = {{
 
 def glyp_to_img(header: dict, p: dict, glyph_data_bs: bytes, color=0xFFFFFFFF):
     """convert a glyph to a PIL Image"""
-    draw_mode = (header["flags"] >> 1) & 3
-    in_bpp = (1, 8, 4)[draw_mode]  # how many bits per pixel
+    in_bpp = 1 << ((header["flags"] >> 1) & 3)  # how many bits per pixel
 
     w = p["width"]  # width in [pixels]
     h = p["height"]  # height in [pixels]
@@ -573,14 +573,11 @@ def main():
         help="Write a binary .fnt file instead instead of a .h",
     )
     parser.add_argument(
-        "--force4bpp",
-        action="store_true",
-        help="Output a bitmap with 4 bits / pixel. Ignored for 1 bit bitmap font inputs.",
-    )
-    parser.add_argument(
-        "--force1bpp",
-        action="store_true",
-        help="Output a monochrome bitmap with 1 bit / pixel and no anti aliasing.",
+        "--bpp",
+        type=int,
+        choices=(1, 2, 4, 8),
+        default=8,
+        help="Output a bitmap with N bits / pixel. Default: 8. Forced to 1 for monochrome bitmap font inputs.",
     )
 
     # parser.add_argument(
