@@ -169,8 +169,6 @@ def get_glyph(args: argparse.Namespace, code: int, face: ft.Face):
         raise NotImplementedError(f"pixel_mode not supported {bitmap.pixel_mode}")
 
     props = {
-        # number of bytes taken per row
-        "pitch": bitmap.pitch,
         "width": bitmap.width,
         "height": bitmap.rows,
         "lsb": blyph.left,
@@ -198,11 +196,8 @@ def print_table(vals, w=24, w_v=3, f=None):
 
 def eight_to_N(buf: bytes, width: int, height: int, out_bpp=1):
     """convert 8 bit / pixel data from buf to `out_bpp` bit / pixel data.
-    The left-most pixel is the MSB.
-    New rows are always started in a new byte, such that:
-    pitch = (width + 7) // 8
+    The left-most pixel is in the MSB. The length of the byte-stream is (w * h * bpp + 7) // 8
     """
-    # TODO, get rid of pitch requirement. Don't align new rows with byte boundaries.
     out_bytes = []
     tmp_byte = 0
     n_bits = 0
