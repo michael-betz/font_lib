@@ -5,6 +5,7 @@ Needs freetype-py installed.
 
 Default output format is anti aliased glyphs with 8 bits / pixel intensity values.
 """
+import ctypes
 from enum import IntFlag
 import re
 import argparse
@@ -113,6 +114,32 @@ def get_n_ascii(cp_set: list):
     return (first_char, len(cp_set))
 
 
+def ft_one_to_eight(bmp: ft.Bitmap):
+    """convert a freetype Bitmap to 8 bpp"""
+    # Create and initialize an empty target bitmap
+    source = bmp._FT_Bitmap
+    target = ft.FT_Bitmap()
+
+    # Convert the 1bpp source to an 8bpp target with an alignment of 1 byte
+    error = ft.FT_Bitmap_Convert(
+        ft.get_handle(),
+        ctypes.byref(source),
+        ctypes.byref(target),
+        1,
+    )
+
+    if error:
+        raise RuntimeError(f"Error converting bitmap: {error}")
+
+    # Re-scale the values in target from 0, 1 to 0, 255
+    buffer_size = target.rows * abs(target.pitch)
+    raw_bytes = ctypes.string_at(target.buffer, buffer_size)
+    scaled_bytes = raw_bytes.replace(b"\x01", b"\xff")
+    ctypes.memmove(target.buffer, scaled_bytes, buffer_size)
+
+    return ft.Bitmap(target)
+
+
 def get_glyph(args: argparse.Namespace, code: int, face: ft.Face):
     """returns a rendered bitmap of a glyph and its metadata
     the bitmap is always in 8 bit / pixel
@@ -128,8 +155,13 @@ def get_glyph(args: argparse.Namespace, code: int, face: ft.Face):
     bitmap = blyph.bitmap
 
     # TODO I hope the bitmap is always 8 bits / pixel
-    if bitmap.pixel_mode != ft.FT_PIXEL_MODE_GRAY:
-        raise NotImplementedError(f"TODO convert to 8bpp here")
+    if bitmap.pixel_mode == ft.FT_PIXEL_MODE_GRAY:
+        pass
+    elif bitmap.pixel_mode == ft.FT_PIXEL_MODE_MONO:
+        args.force1bpp = True
+        bitmap = ft_one_to_eight(bitmap)
+    else:
+        raise NotImplementedError(f"pixel_mode not supported {bitmap.pixel_mode}")
 
     props = {
         # number of bytes taken per row
@@ -165,10 +197,11 @@ def eight_to_N(buf: bytes, width: int, height: int, out_bpp=1):
     New rows are always started in a new byte, such that:
     pitch = (width + 7) // 8
     """
+    # TODO, get rid of pitch requirement. Don't align new rows with byte boundaries.
     out_bytes = []
+    tmp_byte = 0
+    n_bits = 0
     for h in range(height):
-        tmp_byte = 0
-        n_bits = 0
         for w in range(width):
             # input pixel value in 8 bits / pixel
             v = buf[h * width + w]
@@ -185,11 +218,11 @@ def eight_to_N(buf: bytes, width: int, height: int, out_bpp=1):
                 n_bits -= 8
                 # reset the 8 MSB bits we have just output
                 tmp_byte &= (1 << n_bits) - 1
-        if n_bits > 0:
-            # The row is completed, output the remainder. Left aligned!
-            o = tmp_byte << (8 - n_bits)
-            out_bytes.append(o)
-            # print(f"x, {h}: {o:08b}")
+    if n_bits > 0:
+        # The image is completed, output the remainder. Left aligned!
+        o = tmp_byte << (8 - n_bits)
+        out_bytes.append(o)
+        # print(f"x, {h}: {o:08b}")
     return bytes(out_bytes)
 
 
@@ -201,9 +234,9 @@ def N_to_eight(buf: bytes, width: int, height: int, in_bpp=1):
     msb_mask = ((1 << in_bpp) - 1) << (8 - in_bpp)  # set the `in_bpp` MSBs
     i = 0
     out_bytes = bytearray(width * height)
+    tmp_byte = 0
+    n_bits = 0
     for h in range(height):
-        tmp_byte = 0
-        n_bits = 0
         for w in range(width):
             if n_bits < in_bpp:
                 # Shift in fresh data from the right
@@ -211,7 +244,11 @@ def N_to_eight(buf: bytes, width: int, height: int, in_bpp=1):
                 i += 1
                 n_bits += 8
             # Output data from the left
-            out_bytes[h * width + w] = tmp_byte & msb_mask
+            out_val = tmp_byte & msb_mask
+            # fill in the LSBs too, to get white for the max. input value
+            while out_val:
+                out_bytes[h * width + w] |= out_val
+                out_val >>= in_bpp
             # drop the bits we have just output
             tmp_byte = (tmp_byte << in_bpp) & 0xFF
             n_bits -= in_bpp
