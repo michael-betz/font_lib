@@ -9,7 +9,7 @@ enum {
     // which doubles the number of glyphs
     FLAG_HAS_OUTLINE = 1 << 0,
 
-    // Pixel format_B/_A: 00 = 1 bit, 01 = 8 bit monochrome, 10 = 4 bit monochrome
+    // Bits / pixel: 0b00 = 1 bit, 0b01 = 2 bit, 0b10 = 4 bit, 0b11 = 8 bit
     FLAG_PIX_FORMAT_A = 1 << 1,
     FLAG_PIX_FORMAT_B = 1 << 2,
 
@@ -32,21 +32,17 @@ typedef struct {
     uint32_t magic;
     uint16_t n_glyphs;  // number of glyphs in this font file
 
-    // simple ascci mapping parameters
+    // simple ASCII mapping parameters
     uint16_t map_start;  // the first glyph maps to this codepoint
     uint16_t map_n;      // how many glyphs map to incremental codepoints
 
     // When loading from a header file, these are pointers to the tables in memory
     // When loading from a .fnt file, these are the file-offsets to the tables.
-    uint32_t *map_table;  // equal to glyph_description_table when not present
+    uint32_t *map_table;  // may be NULL for pure ASCII mapping
     glyph_description_t *glyph_description_table;
     uint8_t *glyph_data_table;
-
     uint16_t linespace;
-    // to vertically center the digits, add this to tsb
-    int8_t yshift;
-    // See FLAG_* enum above
-    uint8_t flags;
+    uint8_t flags; // See FLAG_* enum above
     char *name;
 } font_header_t;
 
@@ -55,8 +51,10 @@ typedef struct {
 #define A_CENTER 1
 #define A_RIGHT 2
 
+#ifdef FNT_SUPPORT
 // Load a <filePrefix>.fnt file. Uses malloc(). Returns true on success.
 bool init_from_file(const char *filePrefix);
+#endif
 
 bool init_from_header(const font_header_t *header);
 

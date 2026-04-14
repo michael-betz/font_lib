@@ -9,11 +9,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef FNT_SUPPORT
 // These are only used with init_from_file()
 // If fntFile is not NULL, the tables below need to be freed dynamically!
 static FILE *fntFile = NULL;
 static char *fontFileName = NULL;
 static int fontFileNameLen = 0;
+#endif
 
 // Font descriptors.
 static unsigned pix_mode = 0;
@@ -154,6 +156,19 @@ static int find_glyph_index(unsigned codepoint) {
     return glyph_index;
 }
 
+static void post_init() {
+    pix_mode = (fntHeader->flags >> 1) & 3;
+    printf("fontName: %s\n", fntHeader->name);
+    printf("n_glyphs: %d\n", fntHeader->n_glyphs);
+    printf("map_start: %d\n", fntHeader->map_start);
+    printf("map_n: %d\n", fntHeader->map_n);
+    printf("linespace: %d\n", fntHeader->linespace);
+    printf("yshift: %d\n", fntHeader->yshift);
+    printf("flags: %x\n", fntHeader->flags);
+    printf("pix_mode: %d\n", pix_mode);
+}
+
+#ifdef FNT_SUPPORT
 void freeFont() {
     // If no file was loaded, no need to free anything
     if (fntFile == NULL)
@@ -194,18 +209,6 @@ static bool load_helper(void **target, int len, const char *name) {
         }
     }
     return true;
-}
-
-static void post_init() {
-    pix_mode = (fntHeader->flags >> 1) & 3;
-    printf("fontName: %s\n", fntHeader->name);
-    printf("n_glyphs: %d\n", fntHeader->n_glyphs);
-    printf("map_start: %d\n", fntHeader->map_start);
-    printf("map_n: %d\n", fntHeader->map_n);
-    printf("linespace: %d\n", fntHeader->linespace);
-    printf("yshift: %d\n", fntHeader->yshift);
-    printf("flags: %x\n", fntHeader->flags);
-    printf("pix_mode: %d\n", pix_mode);
 }
 
 bool init_from_file(const char *fileName) {
@@ -261,12 +264,6 @@ bool init_from_file(const char *fileName) {
     return true;
 }
 
-bool init_from_header(const font_header_t *header) {
-    freeFont();
-    fntHeader = header;
-    post_init();
-}
-
 uint8_t *get_bitmap_buff_from_file() {
     // Find the beginning and length of the glyph blob
     unsigned data_start = (unsigned)fntHeader->glyph_data_table + desc->start_index;
@@ -304,6 +301,16 @@ uint8_t *get_bitmap_buff_from_file() {
     }
 
     return buff;
+}
+#endif // FNT_SUPPORT
+
+bool init_from_header(const font_header_t *header) {
+    #ifdef FNT_SUPPORT
+    freeFont();
+    #endif
+
+    fntHeader = header;
+    post_init();
 }
 
 static uint8_t *get_pix_val(uint8_t *p, unsigned *val) {

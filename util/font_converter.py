@@ -31,6 +31,7 @@ FMT_GLYPH_DESCRIPTION = "BBbbbI"
 glyph_description_fields = ("width", "height", "lsb", "tsb", "advance", "start_index")
 
 # typedef struct {
+#     uint32_t magic;
 #     uint16_t n_glyphs;  // number of glyphs in this font file
 #     // simple ascci mapping parameters
 #     uint16_t ascii_map_start = 32;  // the first glyph maps to this codepoint
@@ -40,12 +41,10 @@ glyph_description_fields = ("width", "height", "lsb", "tsb", "advance", "start_i
 #     uint32_t glyph_description_offset;
 #     uint32_t glyph_data_offset;
 #     uint16_t linespace;
-#     int8_t yshift;  // to vertically center the digits, add this to tsb
-#     // bit0: has_outline. glyph index of outline = glyph index of fill * 2
 #     uint8_t flags;
 #     const char[] name; // length = map_table_offset - sizeof(font_header_t)
 # } font_header_t;
-FMT_HEADER = "IHHHHIIHbB"
+FMT_HEADER = "IHHHHIIHB"
 
 
 class FLAGS(IntFlag):
@@ -309,8 +308,6 @@ def convert(args: argparse.Namespace, face: ft.Face):
     # --------------------------------------------------
     # Set the flags bits
     flags = FLAGS(0)
-    # if args.monospace:
-    #     flags |= FLAGS.MONOSPACE
     if args.bpp == 1:
         pass
     elif args.bpp == 2:
@@ -377,7 +374,6 @@ def export_as_fnt(
         glyph_description_offset,
         glyph_data_offset,
         header["linespace"],
-        0,  # header["yshift"] // 64,
         header["flags"].value,
     )
 
@@ -455,13 +451,13 @@ static const glyph_dsc_t glyph_dsc_{name}[{len(glyph_props)}] = {{""",
             f"""\
 const font_t f_{name} = {{
     .magic = 0x005A54BE,
-    .linespace = {header["linespace"]},
     .n_glyphs = {header['n_glyphs']},
     .map_start = {header['ascii_map_start']},
     .map_n = {header['ascii_map_n']},
     .map_table = {cp_table_name},
     .glyph_description_table = glyph_dsc_{name},
     .glyph_data_table = glyphs_{name},
+    .linespace = {header["linespace"]},
     .flags = {flag_str},
     .name = \"{header['name']}\"
 }};""",
