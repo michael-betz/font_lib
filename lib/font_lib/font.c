@@ -115,17 +115,14 @@ static int binary_search(unsigned target, const unsigned *arr, int length) {
 }
 
 // Returns NULL on error
-static const glyph_description_t *get_glyph_description(unsigned glyph_index, bool is_outline) {
+static const glyph_description_t *get_glyph_description(unsigned glyph_index) {
     if (glyph_index >= fntHeader->n_glyphs) {
         printf("invalid glyph index :( %d\n", glyph_index);
         return NULL;
     }
 
-    if (is_outline) {
-        if ((fntHeader->flags & FLAG_HAS_OUTLINE) == 0)
-            return NULL;
-
-        glyph_index += fntHeader->n_glyphs / 2;
+    if (fntHeader->flags & FLAG_MONOSPACE) {
+        glyph_index = 0;
     }
 
     return &glyph_description_table[glyph_index];
@@ -264,7 +261,7 @@ bool init_from_file(const char *fileName) {
     return true;
 }
 
-uint8_t *get_bitmap_buff_from_file() {
+uint8_t *get_bitmap_buff_from_file(const glyph_description_t *desc) {
     // Find the beginning and length of the glyph blob
     unsigned data_start = (unsigned)fntHeader->glyph_data_table + desc->start_index;
 
@@ -302,88 +299,71 @@ uint8_t *get_bitmap_buff_from_file() {
 
     return buff;
 }
-#endif // FNT_SUPPORT
+#endif  // FNT_SUPPORT
 
 bool init_from_header(const font_header_t *header) {
-    #ifdef FNT_SUPPORT
+#ifdef FNT_SUPPORT
     freeFont();
-    #endif
+#endif
 
     fntHeader = header;
     post_init();
 }
 
-static uint8_t *get_pix_val(uint8_t *p, unsigned *val) {
-    // decodes a pixel with 1 bit or 8 bit width
-    static int n_bits_left = 0;
-    static unsigned byte_val = 0;
+static void
+glyphToBuffer(int glyph_index, const glyph_description_t *desc, int offs_x, int offs_y) {
+    // how many bits per pixel
+    unsigned bpp = 1 << ((fntHeader->flags >> 1) & 3);
+    // total size of glyph in [bytes]
+    unsigned n_bytes = (desc->width * desc->height * bpp + 7) / 8;
 
-    if (p == NULL || val == NULL) {
-        n_bits_left = 0;
-        return p;
-    }
-
-    // 1 byte per pixel
-    if (pix_mode == 1) {
-        *val = *p++;
-        return p;
-    }
-
-    // 1 bit per pixel
-    if (pix_mode == 0) {
-        if (n_bits_left <= 0) {
-            byte_val = *p++;
-            n_bits_left = 8;
-        }
-
-        *val = (byte_val & 0x80) > 0 ? 0xFF : 0;
-        byte_val <<= 1;
-    }
-
-    return p;
-}
-
-static void glyphToBuffer(const glyph_description_t *desc, int offs_x, int offs_y) {
-    if (desc == NULL)
-        return;
+    unsigned start_index = desc->start_index;
+    if (fntHeader->flags & FLAG_MONOSPACE)
+        start_index = glyph_index * n_bytes;
+    unsigned end_index = start_index + n_bytes;
 
     uint8_t *buff = NULL;
+
+#ifdef FNT_SUPPORT
     if (fntFile)
-        buff = get_bitmap_buff_from_file();
+        buff = get_bitmap_buff_from_file(start_index, end_index);
     else
-        buff = fntHeader->glyph_data_table[desc->start_index];
+        buff = &fntHeader->glyph_data_table[desc->start_index];
+#else
+    buff = &fntHeader->glyph_data_table[desc->start_index];
+#endif
 
-    if (buff == NULL)
+    if (buff == NULL) {
+        printf("Failed to load glyph image!\n");
         return;
+    }
 
-    uint8_t *p = buff;
+    // Extract the bpp bits for each pixel and draw it
+    unsigned current_byte = 0, n_bits = 0, tmp_byte = 0;
     for (int y = 0; y < desc->height; y++) {
-        int yPixel = y + offs_y;
-
-        // if target y-coordinate is outside the displayable area
-        if (yPixel < 0 || yPixel >= DISPLAY_HEIGHT) {
-            // skip this whole row
-            p += pitch;
-            continue;
-        }
-
-        // Make sure to read a fresh byte in 1 pixel mode
-        get_pix_val(NULL, NULL);
-
         for (int x = 0; x < desc->width; x++) {
-            unsigned pix_val = 0;
-            p = get_pix_val(p, &pix_val);
+            if (n_bits < bpp) {
+                // Shift in fresh data from the right
+                tmp_byte = (tmp_byte << 8) | buff[current_byte];
+                current_byte += 1;
+                n_bits += 8;
+            }
+            // Output in_bpp bits from the left and draw this pixel
+            unsigned out_val = tmp_byte >> (8 - bpp);
+            draw_pixel(x + offs_x, y + offs_y, out_val);
 
-            int xPixel = x + offs_x;
-            // draw this pixel
-            draw_pixel(xPixel, yPixel, pix_val);
+            // drop the bits we have just output
+            tmp_byte = (tmp_byte << bpp) & 0xFF;
+            n_bits -= bpp;
         }
     }
+#ifdef FNT_SUPPORT
     if (fntFile)
         free(buff);
+#endif
 }
 
-static void push_char(unsigned codepoint, bool is_outline) {
+static void push_char(unsigned codepoint) {
     const glyph_description_t *desc;
 
     if (fntHeader == NULL) {
@@ -395,12 +375,12 @@ static void push_char(unsigned codepoint, bool is_outline) {
     if (glyph_index < 0)
         return;
 
-    desc = get_glyph_description(glyph_index, is_outline);
+    desc = get_glyph_description(glyph_index);
     if (desc == NULL)
         return;
 
     printf("push_char(%c, %d, %d)\n", (char)codepoint, cursor_x + desc->lsb, cursor_y - desc->tsb);
-    glyphToBuffer(desc, cursor_x + desc->lsb, cursor_y - desc->tsb);
+    glyphToBuffer(glyph_index, desc, cursor_x + desc->lsb, cursor_y - desc->tsb);
 
     cursor_x += desc->advance;
 }
@@ -456,17 +436,10 @@ static void set_x_cursor(int x_a, const char *c, unsigned n, unsigned align) {
         cursor_x = x_a - w_str / 2;
 }
 
-void push_str(int x_a, int y_a, const char *c, unsigned n, unsigned align, bool is_outline) {
+void push_str(int x_a, int y_a, const char *c, unsigned n, unsigned align) {
     if (fntHeader == NULL) {
         printf("No font file loaded\n");
         return;
-    }
-
-    if (is_outline) {
-        if ((fntHeader->flags & FLAG_HAS_OUTLINE) == 0) {
-            printf("Font doesn't have an outline\n");
-            return;
-        }
     }
 
     cursor_y = y_a;
@@ -489,16 +462,16 @@ void push_str(int x_a, int y_a, const char *c, unsigned n, unsigned align, bool 
             continue;
         }
 
-        push_char(codepoint, is_outline);
+        push_char(codepoint);
     }
     utf8_dec('\0');  // reset internal state
 }
 
 void push_print(unsigned color, const char *format, ...) {
-    static char buf[128];
+    static char buff[128];
     va_list ap;
     va_start(ap, format);
-    vsnprintf(buf, sizeof(buf), format, ap);
+    vsnprintf(buff, sizeof(buff), format, ap);
     va_end(ap);
-    push_str(cursor_x, DISPLAY_HEIGHT - 1, buf, sizeof(buf), A_LEFT, false);
+    push_str(cursor_x, FB_HEIGHT - 1, buff, sizeof(buff), A_LEFT);
 }

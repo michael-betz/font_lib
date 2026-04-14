@@ -238,8 +238,8 @@ def N_to_eight(buf: bytes, width: int, height: int, in_bpp=1):
     out_bytes = bytearray(width * height)
     tmp_byte = 0
     n_bits = 0
-    for h in range(height):
-        for w in range(width):
+    for y in range(height):
+        for x in range(width):
             if n_bits < in_bpp:
                 # Shift in fresh data from the right
                 tmp_byte = (tmp_byte << 8) | buf[i]
@@ -249,7 +249,7 @@ def N_to_eight(buf: bytes, width: int, height: int, in_bpp=1):
             out_val = tmp_byte & msb_mask
             # fill in the LSBs too, to get white for the max. input value
             while out_val:
-                out_bytes[h * width + w] |= out_val
+                out_bytes[y * width + x] |= out_val
                 out_val >>= in_bpp
             # drop the bits we have just output
             tmp_byte = (tmp_byte << in_bpp) & 0xFF
