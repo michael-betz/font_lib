@@ -158,7 +158,9 @@ def get_glyph(args: argparse.Namespace, code: int, face: ft.Face):
     if bitmap.pixel_mode == ft.FT_PIXEL_MODE_GRAY:
         pass
     elif bitmap.pixel_mode == ft.FT_PIXEL_MODE_MONO:
-        args.force1bpp = True
+        if args.bpp != 1:
+            print("Monochrome bitmap input. Overriding --bpp to 1 !!!")
+        args.bpp = 1
         bitmap = ft_one_to_eight(bitmap)
     else:
         raise NotImplementedError(f"pixel_mode not supported {bitmap.pixel_mode}")
