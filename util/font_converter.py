@@ -2,8 +2,10 @@
 Convert font files (.ttf, .bdf and others supported by freetype) to the internally used bitmap format (.fnt file).
 
 Needs freetype-py installed.
+
+Default output format is anti aliased glyphs with 8 bits / pixel intensity values.
 """
-from enum import Flag
+from enum import IntFlag
 import re
 import argparse
 from pathlib import Path
@@ -42,8 +44,9 @@ FMT_GLYPH_DESCRIPTION = "BBbbbI"
 FMT_HEADER = "IHHHHIIHbB"
 
 
-class FLAGS(Flag):
+class FLAGS(IntFlag):
     # Flag is set if outline glyphs are available in the font (doubles the number of glyphs)
+    # Not supported by this tool (yet)
     HAS_OUTLINE = 1 << 0
 
     # Pixel format_B/_A: 00 = 1 bit, 01 = 8 bit monochrome, 10 = 4 bit monochrome
@@ -110,10 +113,9 @@ def get_n_ascii(cp_set: list):
     return (first_char, len(cp_set))
 
 
-def get_glyph(code: int, face: ft.Face):
+def get_glyph(args: argparse.Namespace, code: int, face: ft.Face):
     """returns a rendered bitmap of a glyph and its metadata
-    the bitmap is in 1 bit / pixel or 8 bit / pixel, depending if a true type font or
-    a bitmap font was rendered.
+    the bitmap is always in 8 bit / pixel
     """
     face.select_charmap(ft.FT_ENCODING_UNICODE)
     face.load_char(code, ft.FT_LOAD_DEFAULT)
@@ -125,14 +127,13 @@ def get_glyph(code: int, face: ft.Face):
     blyph = glyph.to_bitmap(ft.FT_RENDER_MODE_NORMAL, ft.Vector(0, 0), True)
     bitmap = blyph.bitmap
 
-    if bitmap.pixel_mode not in (ft.FT_PIXEL_MODE_MONO, ft.FT_PIXEL_MODE_GRAY):
-        raise NotImplementedError(f"pixel_mode not supported yet: {bitmap.pixel_mode}")
+    # TODO I hope the bitmap is always 8 bits / pixel
+    if bitmap.pixel_mode != ft.FT_PIXEL_MODE_GRAY:
+        raise NotImplementedError(f"TODO convert to 8bpp here")
 
     props = {
         # number of bytes taken per row
         "pitch": bitmap.pitch,
-        # 1 = A monochrome bitmap, using 1 bit per pixel, MSB first,  2 = Each pixel is stored in one byte
-        "pixel_mode": bitmap.pixel_mode,
         "width": bitmap.width,
         "height": bitmap.rows,
         "lsb": blyph.left,
@@ -158,19 +159,63 @@ def print_table(vals, w=24, w_v=3, f=None):
     print("\n};\n", file=f)
 
 
-def eight_to_four(buf: bytes):
-    """Pack two pixels in one output byte"""
-    return bytes(
-        (buf[i * 2] & 0xF0) | (buf[i * 2 + 1] >> 4) for i in range(len(buf) // 2)
-    )
+def eight_to_N(buf: bytes, width: int, height: int, out_bpp=1):
+    """convert 8 bit / pixel data from buf to `out_bpp` bit / pixel data.
+    The left-most pixel is the MSB.
+    New rows are always started in a new byte, such that:
+    pitch = (width + 7) // 8
+    """
+    out_bytes = []
+    for h in range(height):
+        tmp_byte = 0
+        n_bits = 0
+        for w in range(width):
+            # input pixel value in 8 bits / pixel
+            v = buf[h * width + w]
+            # make space in tmp_byte for out_bpp LSB bits
+            tmp_byte <<= out_bpp
+            # right-shift v to extract its MSBs and insert them in the free spot in tmp_byte
+            tmp_byte |= v >> (8 - out_bpp)
+            n_bits += out_bpp
+            # Output the 8 completed MSBs
+            if n_bits >= 8:
+                o = tmp_byte >> (n_bits - 8)
+                out_bytes.append(o)
+                # print(f"{w}, {h}: {o:08b}")
+                n_bits -= 8
+                # reset the 8 MSB bits we have just output
+                tmp_byte &= (1 << n_bits) - 1
+        if n_bits > 0:
+            # The row is completed, output the remainder. Left aligned!
+            o = tmp_byte << (8 - n_bits)
+            out_bytes.append(o)
+            # print(f"x, {h}: {o:08b}")
+    return bytes(out_bytes)
 
 
-def four_to_eight(buf: bytes):
-    """Unpack two 4-bit pixels into two output bytes"""
-    return bytes(
-        (buf[i // 2] & 0xF0) if i & 1 else (buf[i // 2] & 0xF) << 4
-        for i in range(len(buf) * 2)
-    )
+def N_to_eight(buf: bytes, width: int, height: int, in_bpp=1):
+    """convert `in_bpp` bit / pixel data from buf to 8 bit / pixel data.
+    The left-most pixel is the MSB.
+    New rows are always started in a new byte
+    """
+    msb_mask = ((1 << in_bpp) - 1) << (8 - in_bpp)  # set the `in_bpp` MSBs
+    i = 0
+    out_bytes = bytearray(width * height)
+    for h in range(height):
+        tmp_byte = 0
+        n_bits = 0
+        for w in range(width):
+            if n_bits < in_bpp:
+                # Shift in fresh data from the right
+                tmp_byte = (tmp_byte << 8) | buf[i]
+                i += 1
+                n_bits += 8
+            # Output data from the left
+            out_bytes[h * width + w] = tmp_byte & msb_mask
+            # drop the bits we have just output
+            tmp_byte = (tmp_byte << in_bpp) & 0xFF
+            n_bits -= in_bpp
+    return out_bytes
 
 
 def convert(args: argparse.Namespace, face: ft.Face):
@@ -188,9 +233,13 @@ def convert(args: argparse.Namespace, face: ft.Face):
     glyph_props = []
 
     for code in cp_set:
-        buf, props = get_glyph(chr(code), face)
-        if props["pixel_mode"] == ft.FT_PIXEL_MODE_GRAY and args.four:
-            buf = eight_to_four(buf)
+        buf, props = get_glyph(args, chr(code), face)
+
+        if args.force1bpp:
+            buf = eight_to_N(buf, props["width"], props["height"], 1)
+        elif args.force4bpp:
+            buf = eight_to_N(buf, props["width"], props["height"], 4)
+
         props["cp"] = code
         props["start_index"] = len(glyph_data_bs)
         glyph_props.append(props)
@@ -209,37 +258,20 @@ def convert(args: argparse.Namespace, face: ft.Face):
     # --------------------------------------------------
     #  Collect header info
     # --------------------------------------------------
-    # Get the line-height from the numeral bounding box / the OS/2 table
-    ls = face.size.height // 64
-
-    if ls == 0:
-        print("WARNING!! Setting linespace to 8")
-        import pdb
-
-        pdb.set_trace()
-        ls = 8
-
     # Set the flags bits
     flags = FLAGS(0)
     # if args.monospace:
     #     flags |= FLAGS.MONOSPACE
-    pix_mode = glyph_props[0]["pixel_mode"]
-    if pix_mode == ft.FT_PIXEL_MODE_MONO:
+    if args.force1bpp:  # 1 bpp
         pass
-    elif pix_mode == ft.FT_PIXEL_MODE_GRAY:
-        if args.four:
-            flags |= FLAGS.PIX_FORMAT_B
-        else:
-            flags |= FLAGS.PIX_FORMAT_A
-    else:
-        RuntimeError(
-            "pixel mode of this font file is not supported. Can only do 1, 4 or 8 bpp.",
-            pix_mode,
-        )
+    elif args.force4bpp:  # 4 bpp
+        flags |= FLAGS.PIX_FORMAT_B
+    else:  # 8 bpp
+        flags |= FLAGS.PIX_FORMAT_A
 
     header = {
         "name": face.family_name.decode(),
-        "linespace": ls,
+        "linespace": face.size.height // 64,
         "flags": flags,
         "ascii_map_start": ascii_map_start,
         "ascii_map_n": ascii_map_n,
@@ -393,30 +425,20 @@ const font_t f_{name} = {{
 
 
 def glyp_to_img(header: dict, p: dict, glyph_data_bs: bytes, color=0xFFFFFFFF):
+    """convert a glyph to a PIL Image"""
+    draw_mode = (header["flags"] >> 1) & 3
+    in_bpp = (1, 8, 4)[draw_mode]  # how many bits per pixel
+
+    w = p["width"]  # width in [pixels]
+    h = p["height"]  # height in [pixels]
+    pitch = (w * in_bpp + 7) // 8  # how many [bytes] to skip to get to the next row
+
     start_ind = p["start_index"]
+    end_ind = start_ind + h * pitch
+    in_data = glyph_data_bs[start_ind:end_ind]
+    out_data_8bpp = N_to_eight(in_data, w, h, in_bpp)
 
-    # Convert 4 bit mode back to 8 bit mode
-    if FLAGS.PIX_FORMAT_B in header["flags"]:
-        end_ind = start_ind + (p["width"] * p["height"] // 2 + 1)
-        bs = four_to_eight(glyph_data_bs[start_ind:end_ind])
-    else:
-        end_ind = start_ind + p["width"] * p["height"]
-        bs = glyph_data_bs[start_ind:end_ind]
-
-    if p["pixel_mode"] == ft.FT_PIXEL_MODE_MONO:
-        # convert 8 pixel / byte buffer to 1 pixel / byte
-        bs_ = bytearray(p["width"] * p["height"])
-        for y in range(p["height"]):
-            for x in range(p["width"]):
-                src = bs[y * p["pitch"] + x // 8]
-                bit = (src >> (7 - (x % 8))) & 1
-                bs_[p["width"] * y + x] = bit * 0xFF
-    elif p["pixel_mode"] == ft.FT_PIXEL_MODE_GRAY:
-        bs_ = bs
-    else:
-        NotImplementedError("pixel mode not supported")
-
-    img = Image.frombuffer("L", (p["width"], p["height"]), bs_)
+    img = Image.frombuffer("L", (p["width"], p["height"]), out_data_8bpp)
     img_ = Image.new("RGBA", img.size, color)
     img_.putalpha(img)
     return img_
@@ -453,8 +475,8 @@ def export_as_png(
         # Draw the bitmap bounding box in blue
         draw.rectangle(
             (
-                cur_x + p["lsb"],
-                -p["tsb"] + header["linespace"],
+                cur_x + p["lsb"] - 1,
+                -p["tsb"] + header["linespace"] - 1,
                 cur_x + p["lsb"] + p["width"],
                 -p["tsb"] + header["linespace"] + p["height"],
             ),
@@ -514,10 +536,16 @@ def main():
         help="Write a binary .fnt file instead instead of a .h",
     )
     parser.add_argument(
-        "--four",
+        "--force4bpp",
         action="store_true",
-        help="Convert 8-bit greyscale to 4-bit greyscale. Ignored for 1 bit bitmap font inputs.",
+        help="Output a bitmap with 4 bits / pixel. Ignored for 1 bit bitmap font inputs.",
     )
+    parser.add_argument(
+        "--force1bpp",
+        action="store_true",
+        help="Output a monochrome bitmap with 1 bit / pixel and no anti aliasing.",
+    )
+
     # parser.add_argument(
     #     "--monospace",
     #     action="store_true",
@@ -538,7 +566,7 @@ def main():
     except ft.FT_Exception:
         print(
             "ERROR: Selected height not one of the supported ones:",
-            ",".join([str(ho.height) for ho in face.available_sizes]),
+            [ho.height for ho in face.available_sizes],
         )
         exit(-1)
 
