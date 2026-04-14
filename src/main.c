@@ -8,7 +8,7 @@
 #include <time.h>
 #include <vollkorn.h>
 
-#define ZOOM 2
+#define ZOOM 4
 
 SDL_Renderer *rr = NULL;
 SDL_Window *window = NULL;
@@ -22,7 +22,7 @@ bool send_frame_buffer() {
     for (int y = 0; y < FB_HEIGHT; y++) {
         for (int x = 0; x < FB_WIDTH; x++) {
             uint8_t p = get_pixel(x, y);
-            SDL_SetRenderDrawColor(rr, 0, 0, (p << 4) | p, 0xFF);
+            SDL_SetRenderDrawColor(rr, 0, 0, p, 0xFF);
             SDL_RenderDrawPoint(rr, x, y);
         }
     }
@@ -47,8 +47,12 @@ static void init_sdl() {
     SDL_SetTextureBlendMode(layer_a, SDL_BLENDMODE_NONE);
 }
 
+extern const font_header_t f_vollkorn;
+
 int main(int argc, char *args[]) {
     init_sdl();
+
+    init_from_header(&f_vollkorn);
 
     bool is_running = true;
     unsigned frame = 0;
@@ -77,8 +81,12 @@ int main(int argc, char *args[]) {
 
         // Draw to font_lib frame buffer.
         printf("%d\n", frame);
-        draw_pixel(frame, 4, 0xFF);
-        draw_pixel(frame, 5, 0xFF);
+
+        if (frame == 0) {
+            set_draw_mode(DRAW_ADD);
+            push_str(FB_WIDTH / 2, FB_HEIGHT / 2 - 21, "Hel(l)o Wo[r]ld", 99, A_CENTER);
+            push_str(FB_WIDTH / 2, FB_HEIGHT / 2 + 21, "Q^uatschuQuench!!", 99, A_CENTER);
+        }
 
         // Copy font_lib frame buffer to sdl texture
         send_frame_buffer();
@@ -90,7 +98,7 @@ int main(int argc, char *args[]) {
         SDL_RenderCopy(rr, layer_a, NULL, NULL);
         SDL_RenderPresent(rr);
 
-        SDL_Delay(100);
+        SDL_Delay(1000);
         frame++;
     }
 

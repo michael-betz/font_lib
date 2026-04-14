@@ -306,6 +306,8 @@ bool init_from_header(const font_header_t *header) {
 #endif
 
     fntHeader = header;
+    glyph_description_table = header->glyph_description_table;
+    map_unicode_table = header->map_table;
     post_init();
 }
 
@@ -343,8 +345,7 @@ glyphToBuffer(int glyph_index, const glyph_description_t *desc, int offs_x, int 
         for (int x = 0; x < desc->width; x++) {
             if (n_bits < bpp) {
                 // Shift in fresh data from the right
-                tmp_byte = (tmp_byte << 8) | buff[current_byte];
-                current_byte += 1;
+                tmp_byte = (tmp_byte << 8) | buff[current_byte++];
                 n_bits += 8;
             }
             // Output in_bpp bits from the left and draw this pixel
