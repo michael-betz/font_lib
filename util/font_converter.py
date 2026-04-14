@@ -27,6 +27,9 @@ import freetype as ft
 # } glyph_description_t;
 FMT_GLYPH_DESCRIPTION = "BBbbbI"
 
+# these fields from the glyph_props field will be exported
+glyph_description_fields = ("width", "height", "lsb", "tsb", "advance", "start_index")
+
 # typedef struct {
 #     uint16_t n_glyphs;  // number of glyphs in this font file
 #     // simple ascci mapping parameters
@@ -233,6 +236,9 @@ def N_to_eight(buf: bytes, width: int, height: int, in_bpp=1):
     The left-most pixel is the MSB.
     New rows are always started in a new byte
     """
+    if in_bpp == 8:
+        return buf
+
     msb_mask = ((1 << in_bpp) - 1) << (8 - in_bpp)  # set the `in_bpp` MSBs
     i = 0
     out_bytes = bytearray(width * height)
@@ -255,6 +261,17 @@ def N_to_eight(buf: bytes, width: int, height: int, in_bpp=1):
             tmp_byte = (tmp_byte << in_bpp) & 0xFF
             n_bits -= in_bpp
     return out_bytes
+
+
+def all_props_are_the_same(glyph_props: list[dict]):
+    last_prop = None
+    for prop in glyph_props:
+        # Only compare relevant fields. Don't compare start_index.
+        prop = {k: v for k, v in prop.items() if k in glyph_description_fields[:-1]}
+        if last_prop is not None and last_prop != prop:
+            return False
+        last_prop = prop
+    return True
 
 
 def convert(args: argparse.Namespace, face: ft.Face):
@@ -311,11 +328,19 @@ def convert(args: argparse.Namespace, face: ft.Face):
 
     header = {
         "name": face.family_name.decode(),
+        "n_glyphs": len(cp_set),
         "linespace": face.size.height // 64,
         "flags": flags,
         "ascii_map_start": ascii_map_start,
         "ascii_map_n": ascii_map_n,
     }
+
+    # Check if all glyph-properties are the same.
+    if all_props_are_the_same(glyph_props):
+        # Then produce only a single entry in monospace mode.
+        print("All glyphs are the same size, using MONOSPACE mode.")
+        glyph_props = [glyph_props[0]]
+        header["flags"] |= FLAGS.MONOSPACE
 
     return glyph_props, glyph_data_bs, map_table, header
 
@@ -333,18 +358,8 @@ def export_as_fnt(
     glyph_description_bs = bytes()
     for i, props in enumerate(glyph_props):
         bs = pack(
-            FMT_GLYPH_DESCRIPTION,
-            props["width"],
-            props["height"],
-            props["lsb"],
-            props["tsb"],
-            props["advance_hr"] // 64,
-            props["start_index"],
+            FMT_GLYPH_DESCRIPTION, *(props[key] for key in glyph_description_fields)
         )
-        # Produce only a single entry in monospace mode. All glyphs are the same.
-        if i == 0 or FLAGS.MONOSPACE not in header["flags"]:
-            glyph_description_bs += bs
-        # TODO handle StructError for some glyphs
     print("    glyph_desc:", len(glyph_description_bs), "bytes")
 
     # map_table: Convert int to 4 bytes
@@ -360,7 +375,7 @@ def export_as_fnt(
     font_header_bs = pack(
         FMT_HEADER,
         0x005A54BE,  # magic number
-        len(glyph_props),
+        header["n_glyphs"],
         header["ascii_map_start"],
         header["ascii_map_n"],
         map_table_offset,
@@ -393,7 +408,7 @@ def export_as_header(
     header: dict,
     out_name: str,
 ):
-    name = header["name"]
+    name = header["clean_name"]
 
     with open(out_name, "w") as f:
         print(
@@ -402,7 +417,7 @@ def export_as_header(
 #include <stdio.h>
 #include <font_draw.h>
 // -----------------------------------
-//  {name}
+//  {header["name"]}
 // -----------------------------------
 
 static const uint8_t glyphs_{name}[{len(glyph_data_bs)}] = {{""",
@@ -420,7 +435,7 @@ static const glyph_dsc_t glyph_dsc_{name}[{len(glyph_props)}] = {{""",
             cp = props.pop("cp")
             props["advance"] = props["advance_hr"] // 64
             print("    {", end="", file=f)
-            for k in ("advance", "width", "height", "lsb", "tsb", "start_index"):
+            for k in glyph_description_fields:
                 print(f".{k} = {props[k]:2d}, ", end="", file=f)
             print(f"}},  // U+{cp:04X} '{chr(cp)}'", file=f)
             # Produce only a single entry in monospace mode. All glyphs are the same.
@@ -446,7 +461,7 @@ static const glyph_dsc_t glyph_dsc_{name}[{len(glyph_props)}] = {{""",
 const font_t f_{name} = {{
     .magic = 0x005A54BE,
     .linespace = {header["linespace"]},
-    .n_glyphs = {len(glyph_props)},
+    .n_glyphs = {header['n_glyphs']},
     .map_start = {header['ascii_map_start']},
     .map_n = {header['ascii_map_n']},
     .map_table = {cp_table_name},
@@ -454,8 +469,7 @@ const font_t f_{name} = {{
     .glyph_data_table = glyphs_{name},
     .flags = {flag_str},
     .name = \"{header['name']}\"
-}};
-        """,
+}};""",
             file=f,
         )
 
@@ -464,16 +478,20 @@ const font_t f_{name} = {{
     )
 
 
-def glyp_to_img(header: dict, p: dict, glyph_data_bs: bytes, color=0xFFFFFFFF):
+def glyp_to_img(
+    ind: int, header: dict, p: dict, glyph_data_bs: bytes, color=0xFFFFFFFF
+):
     """convert a glyph to a PIL Image"""
     in_bpp = 1 << ((header["flags"] >> 1) & 3)  # how many bits per pixel
 
     w = p["width"]  # width in [pixels]
     h = p["height"]  # height in [pixels]
-    pitch = (w * in_bpp + 7) // 8  # how many [bytes] to skip to get to the next row
+    n_bytes = (w * h * in_bpp + 7) // 8
 
-    start_ind = p["start_index"]
-    end_ind = start_ind + h * pitch
+    start_ind = (
+        ind * n_bytes if FLAGS.MONOSPACE in header["flags"] else p["start_index"]
+    )
+    end_ind = start_ind + n_bytes
     in_data = glyph_data_bs[start_ind:end_ind]
     out_data_8bpp = N_to_eight(in_data, w, h, in_bpp)
 
@@ -489,14 +507,13 @@ def export_as_png(
     header: dict,
     out_name: str,
 ):
-    all_inds = range(len(glyph_props))
-
-    print(glyph_props[0])
+    all_inds = range(header["n_glyphs"])
 
     # Measure the width needed to print all the glyphs
     total_advance = 0
     for ind in all_inds:
-        total_advance += glyph_props[ind]["advance_hr"] // 64
+        p = glyph_props[0 if FLAGS.MONOSPACE in header["flags"] else ind]
+        total_advance += p["advance"]
 
     img_all = Image.new(
         "RGBA", (total_advance + 8, int(header["linespace"] * 1.5)), 0xFF000000
@@ -510,7 +527,7 @@ def export_as_png(
 
     cur_x = 4
     for ind in all_inds:  # for each glyph
-        p = glyph_props[ind]
+        p = glyph_props[0 if FLAGS.MONOSPACE in header["flags"] else ind]
         # Draw the bitmap bounding box in blue
         draw.rectangle(
             (
@@ -523,7 +540,7 @@ def export_as_png(
         )
         # Place the glyph in the same location as font.c would
         img_all.alpha_composite(
-            glyp_to_img(header, p, glyph_data_bs, 0xFFFFFFFF),
+            glyp_to_img(ind, header, p, glyph_data_bs, 0xFFFFFFFF),
             (
                 cur_x + p["lsb"],
                 -p["tsb"] + header["linespace"],
@@ -608,6 +625,9 @@ def main():
 
     # generate bitmap font
     glyph_props, glyph_data, map_table, header = convert(args, face)
+    header["clean_name"] = re.sub(
+        "[^A-Za-z0-9]+", "_", face.family_name.decode().lower()
+    )
 
     # Generate the output file name
     out_name = Path("fnt/")
@@ -616,8 +636,7 @@ def main():
     if args.numeric_name:
         out_name = get_next_filename(out_name, f_ending)
     else:
-        tmp = re.sub("[^A-Za-z0-9]+", "_", face.family_name.decode().lower())
-        out_name = (out_name / tmp).with_suffix(f_ending)
+        out_name = (out_name / header["clean_name"]).with_suffix(f_ending)
 
     if args.fnt:
         print(f"\nGenerating binary .fnt file ...")
