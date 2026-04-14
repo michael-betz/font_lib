@@ -51,6 +51,7 @@ int main(int argc, char *args[]) {
     init_sdl();
 
     bool is_running = true;
+    unsigned frame = 0;
 
     while (is_running) {
         int encoder_value = 0;
@@ -75,6 +76,9 @@ int main(int argc, char *args[]) {
         }
 
         // Draw to font_lib frame buffer.
+        printf("%d\n", frame);
+        draw_pixel(frame, 4, 0xFF);
+        draw_pixel(frame, 5, 0xFF);
 
         // Copy font_lib frame buffer to sdl texture
         send_frame_buffer();
@@ -86,7 +90,8 @@ int main(int argc, char *args[]) {
         SDL_RenderCopy(rr, layer_a, NULL, NULL);
         SDL_RenderPresent(rr);
 
-        SDL_Delay(5);
+        SDL_Delay(100);
+        frame++;
     }
 
     SDL_DestroyRenderer(rr);

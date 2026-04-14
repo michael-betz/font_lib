@@ -1,5 +1,6 @@
 #include "frame_buffer.h"
 #include <string.h>
+#include <stdio.h>
 
 // Support 1 bit (monochrome) and 4 bit (greyscale)
 static uint8_t framebuffer[FB_SIZE];
@@ -39,6 +40,17 @@ void draw_pixel(int x, int y, uint8_t val) {
     if (x < x_min || x >= x_max || y < y_min || y >= y_max)
         return;
 
+#if FB_BPP == 8
+    uint8_t *p = &framebuffer[x + y * FB_WIDTH];
+    if (draw_mode == DRAW_SET) {
+        *p = val;
+    } else if (draw_mode == DRAW_ADD) {
+        *p |= val;
+    } else if (draw_mode == DRAW_INVERT) {
+        *p ^= val;
+    }
+#endif
+
 #if FB_BPP == 4
     val &= 0xF;
 
@@ -60,14 +72,17 @@ void draw_pixel(int x, int y, uint8_t val) {
         else
             *p ^= val << 4;
     }
-
 #endif
 }
 
 // get a 4 bit pixel-value from framebuffer
-uint8_t get_pixel(unsigned x, unsigned y) {
+uint8_t get_pixel(int x, int y) {
     if (x < 0 || x >= FB_WIDTH || y < 0 || y >= FB_HEIGHT)
         return 0;
+
+#if FB_BPP == 8
+    return framebuffer[x + y * FB_WIDTH];
+#endif
 
 #if FB_BPP == 4
     uint8_t p = framebuffer[x / 2 + y * (FB_WIDTH / 2)];
