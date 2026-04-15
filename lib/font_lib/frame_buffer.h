@@ -1,38 +1,36 @@
 #pragma once
 #include <stdint.h>
 
-#ifndef FB_WIDTH
-#define FB_WIDTH 128
-#endif
+// These defines need to be set by the user in the build flags (Makefile / platformio.ini)
 
-#ifndef FB_HEIGHT
-#define FB_HEIGHT 64
-#endif
+// Width of the framebuffer in [pixels]
+// #define FB_WIDTH 128
 
-#ifndef FB_BPP
-#define FB_BPP 4
-#endif
+// Height of the framebuffer in [pixels]
+// #define FB_HEIGHT 64
+
+// Number of bits per pixel. Choose this according to the display you want to use. One of:
+//   * 8: SDL simulator
+//   * 4: use with SSD1322 based OLEDs with 16 shades
+//	 * 1: use with SSD1306 based OLEDs with monochrome pixels
+// #define FB_BPP 8
+
 
 #define FB_SIZE ((FB_WIDTH * FB_HEIGHT * FB_BPP + 7) / 8)
-
-// In 1 BPP mode: 1 = white, 0 = black
-// In 4 BPP mode: 0 to 15 = shades of grey
-// In 32 bit mode: a color to fade with pix_val (*)
-void set_draw_color(unsigned val);
-
-typedef enum { DRAW_SET, DRAW_ADD, DRAW_INVERT, DRAW_ALPHA } t_draw_mode;
-
-// Select a draw mode
-void set_draw_mode(t_draw_mode val);
 
 // Outside this rectangle, pixels will not be modified
 void set_draw_region(int x0, int y0, int x1, int y1);
 
-// used by font.c to draw a pixel
-void draw_pixel(int x, int y, uint8_t val);
+// Note that for the below functions, value has always 8 bit range, independent of the FB_BPP setting
 
-// return a pixel value
+// Additively increase the brightness value of a pixel. Used by font.c to draw glyphs
+void add_pixel(int x, int y, uint8_t value);
+
+// set a pixel to value.
+void set_pixel(int x, int y, uint8_t value);
+
+// return a pixel value.
 uint8_t get_pixel(int x, int y);
 
-// which framebuffer layer to use (for alpha compositing)
-void set_draw_layer(int val);
+// set all pixels to a shade
+void fill(uint8_t shade);

@@ -2,13 +2,11 @@
 #include <string.h>
 #include <stdio.h>
 
-// Support 1 bit (monochrome) and 4 bit (greyscale)
+// Support 1 bit (monochrome), 4 bit (greyscale) and 8 bit
 static uint8_t framebuffer[FB_SIZE];
-static t_draw_mode draw_mode = DRAW_SET;
+
 // min is inclusive. max is not inclusive. like in numpy slices.
 static int x_min = 0, x_max = FB_WIDTH, y_min = 0, y_max = FB_HEIGHT;
-
-void set_draw_mode(t_draw_mode val) { draw_mode = val; }
 
 static void limit(int *a, int *b, int lim) {
     if (*a < 0)
@@ -35,47 +33,22 @@ void set_draw_region(int x0, int y0, int x1, int y1) {
     y_max = y1;
 }
 
-// Set a 8 bit pixel intensity value in framebuffer. val will be scaled to framebuffer resolution
-void draw_pixel(int x, int y, uint8_t val) {
+void add_pixel(int x, int y, uint8_t value) {
     if (x < x_min || x >= x_max || y < y_min || y >= y_max)
         return;
-
 #if FB_BPP == 8
-    uint8_t *p = &framebuffer[x + y * FB_WIDTH];
-    if (draw_mode == DRAW_SET) {
-        *p = val;
-    } else if (draw_mode == DRAW_ADD) {
-        *p |= val;
-    } else if (draw_mode == DRAW_INVERT) {
-        *p ^= val;
-    }
-#endif
-
-#if FB_BPP == 4
-    val &= 0xF;
-
-    uint8_t *p = &framebuffer[x / 2 + y * (FB_WIDTH / 2)];
-
-    if (draw_mode == DRAW_SET) {
-        if (x & 0x01)
-            *p = (*p & 0xF0) | val;  // set lower nibble
-        else
-            *p = (*p & 0x0F) | (val << 4);  // set upper nibble
-    } else if (draw_mode == DRAW_ADD) {
-        if (x & 0x01)
-            *p |= val;
-        else
-            *p |= val << 4;
-    } else if (draw_mode == DRAW_INVERT) {
-        if (x & 0x01)
-            *p ^= val;
-        else
-            *p ^= val << 4;
-    }
+    framebuffer[x + y * FB_WIDTH] |= value;
 #endif
 }
 
-// get a 8 bit pixel-intensity value from framebuffer
+void set_pixel(int x, int y, uint8_t value) {
+    if (x < x_min || x >= x_max || y < y_min || y >= y_max)
+        return;
+#if FB_BPP == 8
+    framebuffer[x + y * FB_WIDTH] = value;
+#endif
+}
+
 uint8_t get_pixel(int x, int y) {
     if (x < 0 || x >= FB_WIDTH || y < 0 || y >= FB_HEIGHT)
         return 0;
@@ -83,25 +56,19 @@ uint8_t get_pixel(int x, int y) {
 #if FB_BPP == 8
     return framebuffer[x + y * FB_WIDTH];
 #endif
-
-#if FB_BPP == 4
-    uint8_t p = framebuffer[x / 2 + y * (FB_WIDTH / 2)];
-    if (x & 0x01)
-        return p & 0x0F;
-    else
-        return p >> 4;
-#endif
 }
 
-// // set all pixels to a shade
-// void fill(uint8_t shade) {
-//     g_x_min = 0;
-//     g_x_max = DISPLAY_WIDTH - 1;
-//     g_y_min = 0;
-//     g_y_max = DISPLAY_HEIGHT - 1;
-//     shade |= shade << 4;
-//     memset(g_frameBuff, shade, DISPLAY_WIDTH * DISPLAY_HEIGHT / 2);
-// }
+// set all pixels to a shade
+void fill(uint8_t shade) {
+#if FB_BPP == 1
+    shade = (shade >= 0x80) ? 0xFF : 0;
+#elif FB_BPP == 4
+    // Only take the 4 MSBs but apply them for both pixels
+    shade &= 0xF0;
+    shade |= shade >> 4;
+#endif
+    memset(framebuffer, shade, FB_SIZE);
+}
 
 // // Draw one horizontal line with a certain shade (fast, no checks)
 // static void hLine(unsigned x, unsigned y, unsigned w, uint8_t shade) {
