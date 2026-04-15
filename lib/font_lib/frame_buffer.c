@@ -1,6 +1,6 @@
 #include "frame_buffer.h"
-#include <string.h>
 #include <stdio.h>
+#include <string.h>
 
 // Support 1 bit (monochrome), 4 bit (greyscale) and 8 bit
 static uint8_t framebuffer[FB_SIZE];
@@ -38,6 +38,15 @@ void add_pixel(int x, int y, uint8_t value) {
         return;
 #if FB_BPP == 8
     framebuffer[x + y * FB_WIDTH] |= value;
+#elif FB_BPP == 4
+    uint8_t *tmp = &framebuffer[x / 2 + y * FB_WIDTH / 2];
+    if (x & 1)
+        *tmp |= value >> 4;
+    else
+        *tmp |= value & 0xF0;
+#elif FB_BPP == 1
+    uint8_t *tmp = &framebuffer[x / 8 + y * FB_WIDTH / 8];
+    *tmp |= (value & 0x80) >> (x & 7);
 #endif
 }
 
@@ -46,6 +55,19 @@ void set_pixel(int x, int y, uint8_t value) {
         return;
 #if FB_BPP == 8
     framebuffer[x + y * FB_WIDTH] = value;
+#elif FB_BPP == 4
+    uint8_t *tmp = &framebuffer[x / 2 + y * FB_WIDTH / 2];
+    if (x & 1)
+        *tmp = (*tmp & 0xF0) | (value >> 4);
+    else
+        *tmp = (value & 0xF0) | (*tmp & 0x0F);
+#elif FB_BPP == 1
+    uint8_t *tmp = &framebuffer[x / 8 + y * FB_WIDTH / 8];
+    uint8_t mask = 0x80 >> (x & 7);
+    if (value & 0x80)
+        *tmp |= mask;
+    else
+        *tmp &= ~mask;
 #endif
 }
 
@@ -55,6 +77,12 @@ uint8_t get_pixel(int x, int y) {
 
 #if FB_BPP == 8
     return framebuffer[x + y * FB_WIDTH];
+#elif FB_BPP == 4
+    uint8_t tmp = framebuffer[x / 2 + y * FB_WIDTH / 2];
+    return (x & 1) ? (tmp << 4) | (tmp & 0x0F) : (tmp & 0xF0) | (tmp >> 4);
+#elif FB_BPP == 1
+    uint8_t tmp = framebuffer[x / 8 + y * FB_WIDTH / 8];
+    return (tmp << (x & 7)) & 0x80 ? 0xFF : 0x00;
 #endif
 }
 

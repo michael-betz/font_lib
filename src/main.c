@@ -2,18 +2,19 @@
 #include "frame_buffer.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_blendmode.h>
-#include <spleen.h>
+#include <fixed.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <time.h>
+#include <vollkorn.h>
 
 #define ZOOM 4
 
 SDL_Renderer *rr = NULL;
 SDL_Window *window = NULL;
 
-// To show the display pixels in blue (persistent between frames)
+// To show the display pixels in blue
 SDL_Texture *layer_a;
 
 bool send_frame_buffer() {
@@ -47,17 +48,18 @@ static void init_sdl() {
     SDL_SetTextureBlendMode(layer_a, SDL_BLENDMODE_NONE);
 }
 
-// extern const font_header_t f_vollkorn;
-
 int main(int argc, char *args[]) {
     init_sdl();
 
-    bool is_running = true;
-    unsigned frame = 0;
+    bool is_running = true, redraw = true;
+    unsigned frame = 0, align = A_CENTER;
+
+    char test_str[256] = "Hello World!\nType to edit :)\n";
+    int text_cursor = strnlen(test_str, sizeof(test_str));
+    init_from_header(&f_vollkorn);
+    // init_from_header(&f_fixed);
 
     while (is_running) {
-        int encoder_value = 0;
-
         SDL_Event e;
         while (SDL_PollEvent(&e)) {
             switch (e.type) {
@@ -65,39 +67,48 @@ int main(int argc, char *args[]) {
                 is_running = false;
                 break;
             case SDL_KEYDOWN:
-                switch (e.key.keysym.sym) {
-                case SDLK_LEFT:
-                    encoder_value = -1;
-                    break;
-                case SDLK_RIGHT:
-                    encoder_value = 1;
-                    break;
+                if (e.key.keysym.sym == SDLK_LEFT) {
+                    align = A_RIGHT;
+                } else if (e.key.keysym.sym == SDLK_RIGHT) {
+                    align = A_LEFT;
+                } else if (e.key.keysym.sym == SDLK_UP) {
+                    align = A_CENTER;
+                } else if (e.key.keysym.sym == SDLK_BACKSPACE && text_cursor > 0) {
+                    text_cursor--;
+                    test_str[text_cursor] = '\0';
+                } else if (e.key.keysym.sym == SDLK_RETURN &&
+                           text_cursor < (sizeof(test_str) - 1)) {
+                    test_str[text_cursor++] = '\n';
+                    test_str[text_cursor] = '\0';
                 }
+                redraw = true;
+                break;
+            case SDL_TEXTINPUT:
+                // Add new text onto the end of our test string
+                if (text_cursor < (sizeof(test_str) - 1)) {
+                    test_str[text_cursor++] = e.text.text[0];
+                    test_str[text_cursor] = '\0';
+                }
+                redraw = true;
                 break;
             }
         }
 
-        // Draw to font_lib frame buffer.
-        printf("%d\n", frame);
+        if (redraw) {
+            fill(0);
+            push_str(FB_WIDTH / 2, FB_HEIGHT / 4, test_str, 256, align);
+            // Copy font_lib frame buffer to layer_a
+            send_frame_buffer();
 
-        if (frame == 0) {
-            init_from_header(&f_spleen);
-            set_draw_mode(DRAW_ADD);
-            push_str(FB_WIDTH / 2, FB_HEIGHT / 2 - 8, "Hel(l)o Wo[r]ld", 99, A_CENTER);
-            push_str(FB_WIDTH / 2, FB_HEIGHT / 2 + 8, "Q^uatschuQuench!!", 99, A_CENTER);
+            // Compose the layers
+            SDL_SetRenderTarget(rr, NULL);  // default backbuffer
+            SDL_RenderSetScale(rr, ZOOM, ZOOM);
+            SDL_RenderClear(rr);
+            SDL_RenderCopy(rr, layer_a, NULL, NULL);
+            SDL_RenderPresent(rr);
         }
 
-        // Copy font_lib frame buffer to sdl texture
-        send_frame_buffer();
-
-        // Compose the texture
-        SDL_SetRenderTarget(rr, NULL);  // default backbuffer
-        SDL_RenderSetScale(rr, ZOOM, ZOOM);
-        SDL_RenderClear(rr);
-        SDL_RenderCopy(rr, layer_a, NULL, NULL);
-        SDL_RenderPresent(rr);
-
-        SDL_Delay(1000);
+        SDL_Delay(30);
         frame++;
     }
 

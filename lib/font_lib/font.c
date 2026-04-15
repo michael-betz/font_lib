@@ -157,7 +157,7 @@ static void post_init() {
     printf("map_n: %d\n", fntHeader->map_n);
     printf("linespace: %d\n", fntHeader->linespace);
     printf("flags: %x\n", fntHeader->flags);
-    unsigned bpp = 1 << ((fntHeader->flags >> FLAG_PIX_FORMAT_A) & 3);
+    unsigned bpp = 1 << ((fntHeader->flags >> 1) & 3);
     printf("bpp: %d\n", bpp);
 }
 
@@ -356,7 +356,7 @@ glyphToBuffer(int glyph_index, const glyph_description_t *desc, int offs_x, int 
                 out_val |= msb_val;
                 msb_val >>= bpp;
             }
-            draw_pixel(x + offs_x, y + offs_y, out_val);
+            add_pixel(x + offs_x, y + offs_y, out_val);
 
             // drop the bits we have just output
             tmp_byte = (tmp_byte << bpp) & 0xFF;
@@ -387,7 +387,8 @@ static void push_char(unsigned codepoint) {
         return;
     }
 
-    printf("push_char(%c, %d, %d)\n", (char)codepoint, cursor_x + desc->lsb, cursor_y - desc->tsb);
+    // printf("push_char(%c, %d, %d)\n", (char)codepoint, cursor_x + desc->lsb, cursor_y -
+    // desc->tsb);
     glyphToBuffer(glyph_index, desc, cursor_x + desc->lsb, cursor_y - desc->tsb);
 
     cursor_x += desc->advance;
@@ -427,7 +428,7 @@ static int get_str_width(const char *c, unsigned n) {
     }
     utf8_dec('\0');  // reset internal state
 
-    printf("%s width is %d pixels\n", c, w);
+    // printf("%s width is %d pixels\n", c, w);
     return w;
 }
 
@@ -461,12 +462,12 @@ void push_str(int x_a, int y_a, const char *c, unsigned n, unsigned align) {
 
         if (codepoint == '\n') {
             cursor_y += fntHeader->linespace;
-            set_x_cursor(0, c, n, align);
+            set_x_cursor(x_a, c, n, align);
             continue;
         }
 
         if (codepoint == '\r') {
-            set_x_cursor(0, c, n, align);
+            set_x_cursor(x_a, c, n, align);
             continue;
         }
 
