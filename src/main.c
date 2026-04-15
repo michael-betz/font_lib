@@ -2,9 +2,7 @@
 #include "frame_buffer.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_blendmode.h>
-#include <fixed.h>
-#include <lastapprenticebo.h>
-#include <lemon.h>
+#include <spleen.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -83,7 +81,7 @@ int main(int argc, char *args[]) {
         printf("%d\n", frame);
 
         if (frame == 0) {
-            init_from_header(&f_fixed);
+            init_from_header(&f_spleen);
             set_draw_mode(DRAW_ADD);
             push_str(FB_WIDTH / 2, FB_HEIGHT / 2 - 8, "Hel(l)o Wo[r]ld", 99, A_CENTER);
             push_str(FB_WIDTH / 2, FB_HEIGHT / 2 + 8, "Q^uatschuQuench!!", 99, A_CENTER);

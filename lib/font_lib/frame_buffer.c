@@ -35,7 +35,7 @@ void set_draw_region(int x0, int y0, int x1, int y1) {
     y_max = y1;
 }
 
-// Set a 4 bit pixel in framebuffer
+// Set a 8 bit pixel intensity value in framebuffer. val will be scaled to framebuffer resolution
 void draw_pixel(int x, int y, uint8_t val) {
     if (x < x_min || x >= x_max || y < y_min || y >= y_max)
         return;
@@ -75,7 +75,7 @@ void draw_pixel(int x, int y, uint8_t val) {
 #endif
 }
 
-// get a 4 bit pixel-value from framebuffer
+// get a 8 bit pixel-intensity value from framebuffer
 uint8_t get_pixel(int x, int y) {
     if (x < 0 || x >= FB_WIDTH || y < 0 || y >= FB_HEIGHT)
         return 0;

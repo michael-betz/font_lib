@@ -9,6 +9,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+// Font descriptor
+// The struct and its sub-tables can be in static memory (when loading from a .h)
+// or in dynamic memory (when loading a binary .fnt file)
+static const font_header_t *fntHeader = NULL;
+
 #ifdef FNT_SUPPORT
 // These are only used with init_from_file()
 // If fntFile is not NULL, the tables below need to be freed dynamically!
@@ -16,14 +21,6 @@ static FILE *fntFile = NULL;
 static char *fontFileName = NULL;
 static int fontFileNameLen = 0;
 #endif
-
-// Font descriptors.
-static unsigned pix_mode = 0;
-// The tables below can be in static or dynamic memory.
-static const font_header_t *fntHeader = NULL;
-static const char *fontName = NULL;
-static const unsigned *map_unicode_table = NULL;
-static const glyph_description_t *glyph_description_table = NULL;
 
 // glyph cursor
 static int cursor_x = 0, cursor_y = 0;
@@ -125,7 +122,7 @@ static const glyph_description_t *get_glyph_description(unsigned glyph_index) {
         glyph_index = 0;
     }
 
-    return &glyph_description_table[glyph_index];
+    return &fntHeader->glyph_description_table[glyph_index];
 }
 
 // finds the glyph_index for unicode character `codepoint`
@@ -137,10 +134,10 @@ static int find_glyph_index(unsigned codepoint) {
     if (codepoint >= fntHeader->map_start &&
         (codepoint - fntHeader->map_start) < fntHeader->map_n) {
         glyph_index = codepoint - fntHeader->map_start;
-    } else if (map_unicode_table != NULL) {
-        // otherwise binary search in map_unicode_table
+    } else if (fntHeader->map_table != NULL) {
+        // otherwise binary search in fntHeader->map_table
         glyph_index =
-            binary_search(codepoint, map_unicode_table, fntHeader->n_glyphs - fntHeader->map_n);
+            binary_search(codepoint, fntHeader->map_table, fntHeader->n_glyphs - fntHeader->map_n);
         if (glyph_index > -1)
             glyph_index += fntHeader->map_n;
     }
@@ -154,14 +151,14 @@ static int find_glyph_index(unsigned codepoint) {
 }
 
 static void post_init() {
-    pix_mode = (fntHeader->flags >> 1) & 3;
     printf("fontName: %s\n", fntHeader->name);
     printf("n_glyphs: %d\n", fntHeader->n_glyphs);
     printf("map_start: %d\n", fntHeader->map_start);
     printf("map_n: %d\n", fntHeader->map_n);
     printf("linespace: %d\n", fntHeader->linespace);
     printf("flags: %x\n", fntHeader->flags);
-    printf("pix_mode: %d\n", pix_mode);
+    unsigned bpp = 1 << ((fntHeader->flags >> FLAG_PIX_FORMAT_A) & 3);
+    printf("bpp: %d\n", bpp);
 }
 
 #ifdef FNT_SUPPORT
@@ -170,24 +167,24 @@ void freeFont() {
     if (fntFile == NULL)
         return;
 
-    fclose(fntFile);
-    fntFile = NULL;
+    free(fntHeader->glyph_description_table);
+    fntHeader->glyph_description_table = NULL;
 
-    free(fontFileName);
-    fontFileName = NULL;
-    fontFileNameLen = 0;
-
-    free(map_unicode_table);
-    map_unicode_table = NULL;
-
-    free(glyph_description_table);
-    glyph_description_table = NULL;
+    free(fntHeader->map_table);
+    fntHeader->map_table = NULL;
 
     free((void *)fntHeader->name);
     fntHeader->name = NULL;
 
     free(fntHeader);
     fntHeader = NULL;
+
+    free(fontFileName);
+    fontFileName = NULL;
+    fontFileNameLen = 0;
+
+    fclose(fntFile);
+    fntFile = NULL;
 }
 
 static bool load_helper(void **target, int len, const char *name) {
@@ -221,43 +218,47 @@ bool init_from_file(const char *fileName) {
     fntFile = fopen(fileName, "r");
     if (fntFile == NULL) {
         printf("Failed to open %s: %s\n", fileName, strerror(errno));
-        return false;
+        goto error_out;
     }
 
     fntHeader = malloc(sizeof(font_header_t));
-    if (fntHeader == NULL)
-        return false;
+    if (fntHeader == NULL) {
+        printf("Couldn't allocate fntHeader\n");
+        goto error_out;
+    }
 
     int n_read = fread(&fntHeader, sizeof(font_header_t), 1, fntFile);
     if (n_read != 1) {
         printf("Failed to read fntHeader: %s\n", strerror(errno));
-        return false;
+        goto error_out;
     }
 
     if (fntHeader->magic != 0x005A54BE) {
-        printf("Wrong magic :( %x\n", (unsigned)fntHeader->magic);
-        return false;
+        printf("Wrong magic in .fnt file %x\n", (unsigned)fntHeader->magic);
+        goto error_out;
     }
 
-    if (!load_helper((void **)fntHeader->name,
+    if (!load_helper((void **)&fntHeader->name,
                      fntHeader->map_table_offset - sizeof(font_header_t),
-                     "font name")) {
-        return false;
-    }
+                     "font name"))
+        goto error_out;
 
-    if (!load_helper((void **)&map_unicode_table,
+    if (!load_helper((void **)&fntHeader->map_table,
                      fntHeader->glyph_description_offset - fntHeader->map_table_offset,
-                     "unicode mapping table")) {
-        return false;
-    }
+                     "unicode mapping table"))
+        goto error_out;
 
-    if (!load_helper((void **)&glyph_description_table,
+    if (!load_helper((void **)&fntHeader->glyph_description_table,
                      fntHeader->glyph_data_offset - fntHeader->glyph_description_offset,
-                     "glyph description table")) {
-        return false;
-    }
+                     "glyph description table"))
+        goto error_out;
+
     post_init();
     return true;
+
+error_out:
+    freeFont();
+    return false;
 }
 
 uint8_t *get_bitmap_buff_from_file(const glyph_description_t *desc) {
@@ -306,8 +307,6 @@ void init_from_header(const font_header_t *header) {
 #endif
 
     fntHeader = header;
-    glyph_description_table = header->glyph_description_table;
-    map_unicode_table = header->map_table;
     post_init();
 }
 
@@ -340,6 +339,7 @@ glyphToBuffer(int glyph_index, const glyph_description_t *desc, int offs_x, int 
     }
 
     // Extract the bpp bits for each pixel and draw it
+    unsigned msb_mask = ((1 << bpp) - 1) << (8 - bpp);  // set the `bpp` MSBs
     unsigned current_byte = 0, n_bits = 0, tmp_byte = 0;
     for (int y = 0; y < desc->height; y++) {
         for (int x = 0; x < desc->width; x++) {
@@ -349,8 +349,14 @@ glyphToBuffer(int glyph_index, const glyph_description_t *desc, int offs_x, int 
                 n_bits += 8;
             }
             // Output in_bpp bits from the left and draw this pixel
-            unsigned out_val = tmp_byte >> (8 - bpp);
-            draw_pixel(x + offs_x, y + offs_y, out_val * 0xFF);
+            unsigned out_val = tmp_byte & msb_mask;
+            // fill in the lower bits too, to get white for the max. input value
+            unsigned msb_val = out_val >> bpp;
+            while (msb_val) {
+                out_val |= msb_val;
+                msb_val >>= bpp;
+            }
+            draw_pixel(x + offs_x, y + offs_y, out_val);
 
             // drop the bits we have just output
             tmp_byte = (tmp_byte << bpp) & 0xFF;
