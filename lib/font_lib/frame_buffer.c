@@ -33,7 +33,15 @@ void set_draw_region(int x0, int y0, int x1, int y1) {
     y_max = y1;
 }
 
+void set_draw_region_full() {
+    x_min = 0;
+    x_max = FB_WIDTH;
+    y_min = 0;
+    y_max = FB_HEIGHT;
+}
+
 void add_pixel(int x, int y, uint8_t value) {
+    // printf("(%d, %d): %d\n", x, y, value);
     if (x < x_min || x >= x_max || y < y_min || y >= y_max)
         return;
 #if FB_BPP == 8
@@ -87,40 +95,42 @@ uint8_t get_pixel(int x, int y) {
 }
 
 // set all pixels to a shade
-void fill(uint8_t shade) {
+void fill(uint8_t value) {
 #if FB_BPP == 1
-    shade = (shade >= 0x80) ? 0xFF : 0;
+    value = (value >= 0x80) ? 0xFF : 0;
 #elif FB_BPP == 4
     // Only take the 4 MSBs but apply them for both pixels
-    shade &= 0xF0;
-    shade |= shade >> 4;
+    value &= 0xF0;
+    value |= value >> 4;
 #endif
-    memset(framebuffer, shade, FB_SIZE);
+    memset(framebuffer, value, FB_SIZE);
 }
 
-// // Draw one horizontal line with a certain shade (fast, no checks)
-// static void hLine(unsigned x, unsigned y, unsigned w, uint8_t shade) {
-//     if (w == 0)
-//         return;
-//     // printf("hLine(%2d, %2d, %2d, %2d)\n", x, y, w, shade);
+void fast_h_line(int x, int y, int w, uint8_t value) {
+    if (w == 0)
+        return;
+    // printf("fast_h_line(%2d, %2d, %2d, %2d)\n", x, y, w, value);
 
-//     uint8_t *p = &g_frameBuff[x / 2 + y * (DISPLAY_WIDTH / 2)];
-
-//     if (x & 0x01) {
-//         *p = (*p & 0xF0) | shade;  // set lower nibble only
-//         p++;
-//         x++;
-//         w--;
-//     }
-
-//     unsigned len = w / 2;
-//     memset(p, (shade << 4) | shade, len);  // set bytes / words
-
-//     if (((x + w) & 0x01)) {
-//         p += len;
-//         *p = (*p & 0x0F) | (shade << 4);  // set upper nibble only
-//     }
-// }
+#if FB_BPP == 8
+    uint8_t *tmp = &framebuffer[x + y * FB_WIDTH];
+    memset(tmp, value, w);
+#elif FB_BPP == 4
+    uint8_t *tmp = &framebuffer[x / 2 + y * FB_WIDTH / 2];
+    // partial byte: set the right pixel, which is in the LSB
+    if (x & 1) {
+        *tmp++ = (*tmp & 0xF0) | (value >> 4);
+        w--;
+    }
+    // set double-pixels in the full bytes in the middle
+    unsigned n_full_bytes = w / 2;
+    memset(tmp, value, n_full_bytes);
+    w -= n_full_bytes * 2;
+    tmp += n_full_bytes;
+    // partial byte: set the left pixel, which is in the MSB
+    if (w > 0)
+        *tmp = (value & 0xF0) | (*tmp & 0x0F);
+#endif
+}
 
 // static void vLine(unsigned x, unsigned y, unsigned h, uint8_t shade) {
 //     for (unsigned i = 0; i < h; i++)
@@ -157,115 +167,6 @@ void fill(uint8_t shade) {
 //     vLine(x0, y0, h + 1, shade);
 //     vLine(x0 + w, y0, h + 1, shade);
 // }
-
-// // --------------------
-// //  Anti-aliased line
-// // --------------------
-// // hardcoded parameters for 4 bit greyscale mode
-// // changed arithmetic to picorv32 native 32 bit
-// #define INTENSITY_BITS 4
-// #define BASE_COLOR 0x0F
-// #define N_BITS 16  // number of bits of `ErrorAdj` and `ErrorAcc`
-
-// // number of bits by which to shift ErrorAcc to get intensity level
-// #define INTENSITY_SHIFT (N_BITS - INTENSITY_BITS)
-// #define INTENSITY_MASK ((1 << INTENSITY_BITS) - 1)
-
-// // draw white anti-aliased line from (x0, y0) to (x1, y1)
-// void drawLine(int x0, int y0, int x1, int y1) {
-//     uint16_t ErrorAdj, ErrorAcc;
-//     unsigned ErrorAccTemp, Weighting;
-//     int DeltaX, DeltaY, Temp, XDir;
-
-//     // Make sure the line runs top to bottom
-//     if (y0 > y1) {
-//         Temp = y0;
-//         y0 = y1;
-//         y1 = Temp;
-//         Temp = x0;
-//         x0 = x1;
-//         x1 = Temp;
-//     }
-
-//     update_window((x0 > x1) ? x1 : x0, y0, (x0 > x1) ? x0 : x1, y1);
-
-//     // Draw the initial pixel, which is always exactly intersected by
-//     // the line and so needs no weighting
-//     setPixel(x0, y0, BASE_COLOR);
-
-//     if ((DeltaX = x1 - x0) >= 0) {
-//         XDir = 1;
-//     } else {
-//         XDir = -1;
-//         DeltaX = -DeltaX;  // make DeltaX positive
-//     }
-//     // Special-case horizontal, vertical, and diagonal lines, which
-//     // require no weighting because they go right through the center of
-//     // every pixel
-//     if ((DeltaY = y1 - y0) == 0) {
-//         // Horizontal line
-//         while (DeltaX-- != 0) {
-//             x0 += XDir;
-//             setPixel(x0, y0, BASE_COLOR);
-//         }
-//         return;
-//     }
-//     if (DeltaX == 0) {
-//         // Vertical line
-//         do {
-//             y0++;
-//             setPixel(x0, y0, BASE_COLOR);
-//         } while (--DeltaY != 0);
-//         return;
-//     }
-//     if (DeltaX == DeltaY) {
-//         // Diagonal line
-//         do {
-//             x0 += XDir;
-//             y0++;
-//             setPixel(x0, y0, BASE_COLOR);
-//         } while (--DeltaY != 0);
-//         return;
-//     }
-//     // line is not horizontal, diagonal, or vertical
-//     ErrorAcc = 0;
-//     // Is this an X-major or Y-major line?
-//     if (DeltaY > DeltaX) {
-//         // Y-major line; calculate N_BITS-bit fixed-point fractional part of a
-//         // pixel that X advances each time Y advances 1 pixel, truncating the
-//         // result so that we won't overrun the endpoint along the X axis
-//         ErrorAdj = ((uint32_t)DeltaX << N_BITS) / (uint32_t)DeltaY;
-//         // Draw all pixels other than the first and last
-//         while (--DeltaY) {
-//             ErrorAccTemp = ErrorAcc;  // remember current accumulated error
-//             ErrorAcc += ErrorAdj;     // calculate error for next pixel
-//             if (ErrorAcc <= ErrorAccTemp)
-//                 x0 += XDir;
-//             y0++;  // Y-major, so always advance Y
-//             Weighting = ErrorAcc >> INTENSITY_SHIFT;
-//             setPixel(x0, y0, Weighting ^ INTENSITY_MASK);
-//             setPixel(x0 + XDir, y0, Weighting);
-//         }
-//         // the final pixel, which is always exactly intersected by the line
-//         setPixel(x1, y1, BASE_COLOR);
-//         return;
-//     }
-//     // It's an X-major line;
-//     ErrorAdj = ((uint32_t)DeltaY << N_BITS) / (uint32_t)DeltaX;
-//     // Draw all pixels other than the first and last
-//     while (--DeltaX) {
-//         ErrorAccTemp = ErrorAcc;  // remember current accumulated error
-//         ErrorAcc += ErrorAdj;     // calculate error for next pixel
-//         if (ErrorAcc <= ErrorAccTemp)
-//             y0++;
-//         x0 += XDir;  // X-major, so always advance X
-//         Weighting = ErrorAcc >> INTENSITY_SHIFT;
-//         setPixel(x0, y0, Weighting ^ INTENSITY_MASK);
-//         setPixel(x0, y0 + 1, Weighting);
-//     }
-//     setPixel(x1, y1, BASE_COLOR);
-// }
-
 // bool send_partial_fb(void) {
 //     static bool is_done = true;
 //     if (is_done) {

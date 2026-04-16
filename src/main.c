@@ -1,5 +1,6 @@
 #include "font.h"
 #include "frame_buffer.h"
+#include "graphics.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_blendmode.h>
 #include <fixed.h>
@@ -23,7 +24,7 @@ bool send_frame_buffer() {
     for (int y = 0; y < FB_HEIGHT; y++) {
         for (int x = 0; x < FB_WIDTH; x++) {
             uint8_t p = get_pixel(x, y);
-            SDL_SetRenderDrawColor(rr, 0, 0, p, 0xFF);
+            SDL_SetRenderDrawColor(rr, p, p, p, 0xFF);
             SDL_RenderDrawPoint(rr, x, y);
         }
     }
@@ -96,7 +97,18 @@ int main(int argc, char *args[]) {
 
         if (redraw) {
             fill(0);
-            push_str(FB_WIDTH / 2, FB_HEIGHT / 4, test_str, 256, align);
+            push_str(FB_WIDTH / 2, FB_HEIGHT / 4, test_str, sizeof(test_str), align);
+
+            draw_line_aa(-8 + frame, 4, FB_WIDTH / 2, FB_HEIGHT);
+            draw_line_aa(8 + FB_WIDTH - frame, 4, FB_WIDTH / 3, FB_HEIGHT);
+            draw_line_aa(4, -8 + frame, FB_WIDTH, FB_HEIGHT / 2);
+            draw_line_aa(4, 8 + FB_HEIGHT - frame, FB_WIDTH, FB_HEIGHT / 3);
+
+            draw_ellipse_aa(FB_WIDTH / 2 - 8, FB_HEIGHT / 2, frame, 48, 0b1010);
+            draw_ellipse_aa(FB_WIDTH / 2, FB_HEIGHT / 2, frame / 2, frame / 2, 0b0011);
+            draw_ellipse_aa(FB_WIDTH / 2, FB_HEIGHT / 2, frame - 8, frame - 8, 0b1100);
+            draw_ellipse_aa(FB_WIDTH / 2 + 8, FB_HEIGHT / 2, frame, 48, 0b0101);
+
             // Copy font_lib frame buffer to layer_a
             send_frame_buffer();
 
@@ -108,7 +120,8 @@ int main(int argc, char *args[]) {
             SDL_RenderPresent(rr);
         }
 
-        SDL_Delay(30);
+        SDL_Delay(100);
+        // redraw = false;
         frame++;
     }
 
