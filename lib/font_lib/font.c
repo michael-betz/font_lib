@@ -150,7 +150,12 @@ static int find_glyph_index(unsigned codepoint) {
     return glyph_index;
 }
 
-static void post_init() {
+void print_font_info() {
+    if (fntHeader == NULL) {
+        printf("No font file loaded\n");
+        return;
+    }
+
     printf("fontName: %s\n", fntHeader->name);
     printf("n_glyphs: %d\n", fntHeader->n_glyphs);
     printf("map_start: %d\n", fntHeader->map_start);
@@ -253,7 +258,6 @@ bool init_from_file(const char *fileName) {
                      "glyph description table"))
         goto error_out;
 
-    post_init();
     return true;
 
 error_out:
@@ -307,7 +311,6 @@ void init_from_header(const font_header_t *header) {
 #endif
 
     fntHeader = header;
-    post_init();
 }
 
 static void
@@ -371,11 +374,6 @@ glyphToBuffer(int glyph_index, const glyph_description_t *desc, int offs_x, int 
 
 static void push_char(unsigned codepoint) {
     const glyph_description_t *desc;
-
-    if (fntHeader == NULL) {
-        printf("no font loaded\n");
-        return;
-    }
 
     int glyph_index = find_glyph_index(codepoint);
     if (glyph_index < 0)
@@ -445,10 +443,10 @@ static void set_x_cursor(int x_a, const char *c, unsigned n, unsigned align) {
         cursor_x = x_a - w_str / 2;
 }
 
-void push_str(int x_a, int y_a, const char *c, unsigned n, unsigned align) {
+int push_str(int x_a, int y_a, const char *c, unsigned n, unsigned align) {
     if (fntHeader == NULL) {
         printf("No font file loaded\n");
-        return;
+        return 0;
     }
 
     cursor_y = y_a;
@@ -474,6 +472,7 @@ void push_str(int x_a, int y_a, const char *c, unsigned n, unsigned align) {
         push_char(codepoint);
     }
     utf8_dec('\0');  // reset internal state
+    return cursor_x;
 }
 
 void push_print(unsigned color, const char *format, ...) {

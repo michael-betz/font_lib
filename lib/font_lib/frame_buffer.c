@@ -71,7 +71,7 @@ void set_pixel(int x, int y, uint8_t value) {
     else
         *tmp = (value & 0xF0) | (*tmp & 0x0F);
 #elif FB_BPP == 1
-    // Addressing is compatible with SSD1306
+    // Addressing is compatible with SSD1306 memory layout
     uint8_t *tmp = &framebuffer[x + (y / 8) * FB_WIDTH];
     uint8_t mask = 1 << (y & 7);
     if (value & 0x80)
@@ -92,7 +92,7 @@ uint8_t get_pixel(int x, int y) {
     return (x & 1) ? (tmp << 4) | (tmp & 0x0F) : (tmp & 0xF0) | (tmp >> 4);
 #elif FB_BPP == 1
     uint8_t tmp = framebuffer[x + (y / 8) * FB_WIDTH];
-    return (tmp >> (y & 7)) & 0x80 ? 0xFF : 0x00;
+    return (tmp >> (y & 7)) & 1 ? 0xFF : 0x00;
 #endif
 }
 

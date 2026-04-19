@@ -58,14 +58,15 @@ bool init_from_file(const char *filePrefix);
 
 void init_from_header(const font_header_t *header);
 
-// draws a string of length `n` into `layer`
-// to center it use x_a = 0 and
-// colors cOutline and cFill
-void push_str(int x_a,        // x-offset of the anchor point in pixels
-              int y_a,        // y-offset in pixels
-              const char *c,  // the UTF8 string to draw (can be zero terminated)
-              unsigned n,     // length of the string
-              unsigned align  // Anchor point. One of A_LEFT, A_CENTER, A_RIGHT
+// Print infos about the loaded font
+void print_font_info();
+
+// draws the chars from `c` at a specific position. Returns cursor_x.
+int push_str(int x_a,        // x-offset of the anchor point in pixels
+             int y_a,        // y-offset in pixels
+             const char *c,  // the UTF8 string to draw (can be zero terminated)
+             unsigned n,     // length of the string
+             unsigned align  // Anchor point. One of A_LEFT, A_CENTER, A_RIGHT
 );
 
 // This needs to be implemented by the framebuffer:
