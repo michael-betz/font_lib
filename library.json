@@ -1,0 +1,27 @@
+{
+  "name": "font_lib",
+  "version": "0.0.1",
+  "description": "A 1, 4 and 8 bit bitmap-font and graphics library.",
+  "keywords": "font bitmap graphics",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/username/hello-world.git"
+  },
+  "examples": [
+    "src/main.cpp"
+  ],
+  "build": {
+    "srcDir": "lib/font_lib"
+  },
+  "authors": [
+    {
+      "name": "Michael Betz",
+      "email": "web@betz-engineering.ch",
+      "url": "https://betz-engineering.ch"
+    }
+  ],
+  "license": "MIT",
+  "homepage": "https://betz-engineering.ch",
+  "frameworks": "*",
+  "platforms": "*"
+}
