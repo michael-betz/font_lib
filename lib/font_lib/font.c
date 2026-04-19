@@ -85,7 +85,7 @@ static unsigned utf8_dec(char c) {
     return 0;
 }
 
-static int binary_search(unsigned target, const unsigned *arr, int length) {
+static int binary_search(unsigned target, uint32_t *arr, int length) {
     int left = 0;
     int right = length - 1;
 
@@ -320,11 +320,11 @@ glyphToBuffer(int glyph_index, const glyph_description_t *desc, int offs_x, int 
     unsigned start_index = desc->start_index;
     if (fntHeader->flags & FLAG_MONOSPACE)
         start_index = glyph_index * n_bytes;
-    unsigned end_index = start_index + n_bytes;
 
     uint8_t *buff = NULL;
 
 #ifdef FNT_SUPPORT
+    unsigned end_index = start_index + n_bytes;
     if (fntFile)
         buff = get_bitmap_buff_from_file(start_index, end_index);
     else

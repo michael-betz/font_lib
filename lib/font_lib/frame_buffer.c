@@ -3,7 +3,7 @@
 #include <string.h>
 
 // Support 1 bit (monochrome), 4 bit (greyscale) and 8 bit
-static uint8_t framebuffer[FB_SIZE];
+uint8_t framebuffer[FB_SIZE];
 
 // min is inclusive. max is not inclusive. like in numpy slices.
 static int x_min = 0, x_max = FB_WIDTH, y_min = 0, y_max = FB_HEIGHT;
@@ -53,8 +53,9 @@ void add_pixel(int x, int y, uint8_t value) {
     else
         *tmp |= value & 0xF0;
 #elif FB_BPP == 1
-    uint8_t *tmp = &framebuffer[x / 8 + y * FB_WIDTH / 8];
-    *tmp |= (value & 0x80) >> (x & 7);
+    uint8_t *tmp = &framebuffer[x + (y / 8) * FB_WIDTH];
+    if (value & 0x80)
+        *tmp |= 1 << (y & 7);
 #endif
 }
 
@@ -70,8 +71,9 @@ void set_pixel(int x, int y, uint8_t value) {
     else
         *tmp = (value & 0xF0) | (*tmp & 0x0F);
 #elif FB_BPP == 1
-    uint8_t *tmp = &framebuffer[x / 8 + y * FB_WIDTH / 8];
-    uint8_t mask = 0x80 >> (x & 7);
+    // Addressing is compatible with SSD1306
+    uint8_t *tmp = &framebuffer[x + (y / 8) * FB_WIDTH];
+    uint8_t mask = 1 << (y & 7);
     if (value & 0x80)
         *tmp |= mask;
     else
@@ -89,8 +91,8 @@ uint8_t get_pixel(int x, int y) {
     uint8_t tmp = framebuffer[x / 2 + y * FB_WIDTH / 2];
     return (x & 1) ? (tmp << 4) | (tmp & 0x0F) : (tmp & 0xF0) | (tmp >> 4);
 #elif FB_BPP == 1
-    uint8_t tmp = framebuffer[x / 8 + y * FB_WIDTH / 8];
-    return (tmp << (x & 7)) & 0x80 ? 0xFF : 0x00;
+    uint8_t tmp = framebuffer[x + (y / 8) * FB_WIDTH];
+    return (tmp >> (y & 7)) & 0x80 ? 0xFF : 0x00;
 #endif
 }
 
@@ -106,31 +108,31 @@ void fill(uint8_t value) {
     memset(framebuffer, value, FB_SIZE);
 }
 
-void fast_h_line(int x, int y, int w, uint8_t value) {
-    if (w == 0)
-        return;
-    // printf("fast_h_line(%2d, %2d, %2d, %2d)\n", x, y, w, value);
+// void fast_h_line(int x, int y, int w, uint8_t value) {
+//     if (w == 0)
+//         return;
+//     // printf("fast_h_line(%2d, %2d, %2d, %2d)\n", x, y, w, value);
 
-#if FB_BPP == 8
-    uint8_t *tmp = &framebuffer[x + y * FB_WIDTH];
-    memset(tmp, value, w);
-#elif FB_BPP == 4
-    uint8_t *tmp = &framebuffer[x / 2 + y * FB_WIDTH / 2];
-    // partial byte: set the right pixel, which is in the LSB
-    if (x & 1) {
-        *tmp++ = (*tmp & 0xF0) | (value >> 4);
-        w--;
-    }
-    // set double-pixels in the full bytes in the middle
-    unsigned n_full_bytes = w / 2;
-    memset(tmp, value, n_full_bytes);
-    w -= n_full_bytes * 2;
-    tmp += n_full_bytes;
-    // partial byte: set the left pixel, which is in the MSB
-    if (w > 0)
-        *tmp = (value & 0xF0) | (*tmp & 0x0F);
-#endif
-}
+// #if FB_BPP == 8
+//     uint8_t *tmp = &framebuffer[x + y * FB_WIDTH];
+//     memset(tmp, value, w);
+// #elif FB_BPP == 4
+//     uint8_t *tmp = &framebuffer[x / 2 + y * FB_WIDTH / 2];
+//     // partial byte: set the right pixel, which is in the LSB
+//     if (x & 1) {
+//         *tmp++ = (*tmp & 0xF0) | (value >> 4);
+//         w--;
+//     }
+//     // set double-pixels in the full bytes in the middle
+//     unsigned n_full_bytes = w / 2;
+//     memset(tmp, value, n_full_bytes);
+//     w -= n_full_bytes * 2;
+//     tmp += n_full_bytes;
+//     // partial byte: set the left pixel, which is in the MSB
+//     if (w > 0)
+//         *tmp = (value & 0xF0) | (*tmp & 0x0F);
+// #endif
+// }
 
 // static void vLine(unsigned x, unsigned y, unsigned h, uint8_t shade) {
 //     for (unsigned i = 0; i < h; i++)

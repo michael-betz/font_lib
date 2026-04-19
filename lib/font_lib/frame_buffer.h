@@ -17,6 +17,8 @@
 
 #define FB_SIZE ((FB_WIDTH * FB_HEIGHT * FB_BPP + 7) / 8)
 
+extern uint8_t framebuffer[FB_SIZE];
+
 // Outside this rectangle, pixels will not be modified
 void set_draw_region(int x0, int y0, int x1, int y1);
 
@@ -41,4 +43,4 @@ void fill(uint8_t shade);
 
 // Draw one horizontal line with a certain shade. Ignores draw region.
 // !!! Warning !!! fast implementation, no internal checks!!
-void fast_h_line(int x, int y, int w, uint8_t value);
+// void fast_h_line(int x, int y, int w, uint8_t value);
