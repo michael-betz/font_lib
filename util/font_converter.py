@@ -161,7 +161,7 @@ def get_glyph(args: argparse.Namespace, code: int, face: ft.Face):
         pass
     elif bitmap.pixel_mode == ft.FT_PIXEL_MODE_MONO:
         if args.bpp != 1:
-            print("Monochrome bitmap input. Overriding --bpp to 1 !!!")
+            print("Monochrome bitmap input. Forcing --bpp to 1")
         args.bpp = 1
         bitmap = ft_one_to_eight(bitmap)
     else:
@@ -299,9 +299,10 @@ def convert(args: argparse.Namespace, face: ft.Face):
     # convert cp_set to uint32_t
     ascii_map_start, ascii_map_n = get_n_ascii(cp_set)
     map_table = cp_set[ascii_map_n:]
-    print(f"    ascii_map_start: 0x{ascii_map_start:02x}, ascii_map_n: {ascii_map_n}")
-    print(f"    map_table: {len(map_table)} 32 bit words")
-    print("    glyph_data:", len(glyph_data_bs), "bytes")
+    print(f"ascii_map_start: 0x{ascii_map_start:02x}, ascii_map_n: {ascii_map_n}")
+    print(f"    ascii_map_n: {ascii_map_n}")
+    print(f"      map_table: {len(map_table) * 4} bytes")
+    print(f"     glyph_data: {len(glyph_data_bs)} bytes")
 
     # --------------------------------------------------
     #  Collect header info
@@ -549,7 +550,7 @@ def main():
     )
     parser.add_argument(
         "--height",
-        type=float,
+        type=int,
         help="Target height of the glyphs. Default for vector fonts: 30 pixels",
     )
     parser.add_argument(
@@ -600,23 +601,31 @@ def main():
 
     # Load an existing font file and set its size to user input / a reasonable default
     face = ft.Face(args.fontfile)
+    heights = [ho.height for ho in face.available_sizes]
+    print("Available bitmap strike heights:", heights)
     if args.height is None:
         if face.is_scalable:
             args.height = 30
         else:
             args.height = face.available_sizes[-1].height
-    try:
-        face.set_char_size(height=int(args.height * 64))
-    except ft.FT_Exception:
-        print(
-            "ERROR: Selected height not one of the supported ones:",
-            [ho.height for ho in face.available_sizes],
-        )
-        exit(-1)
+
+    # Check if the requested height exactly matches an available bitmap strike
+    strike_index = None
+    if args.height in heights:
+        face.select_size(heights.index(args.height))
+        print("Using bitmap strikes of height", args.height)
+    else:
+        # Fallback for when no exact bitmap strike exists
+        try:
+            face.set_char_size(height=args.height * 64)
+            print("Using vector strikes of height", args.height)
+        except ft.FT_Exception as e:
+            heights = [ho.height for ho in face.available_sizes]
+            print(f"{e}. Selected height {args.height} is not supported")
+            exit(-1)
 
     # generate bitmap font
     glyph_props, glyph_data, map_table, header = convert(args, face)
-    print(glyph_props[0])
     header["clean_name"] = re.sub(
         "[^A-Za-z0-9]+", "_", face.family_name.decode().lower()
     )
