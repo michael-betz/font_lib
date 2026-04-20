@@ -5,7 +5,7 @@
   "keywords": "font bitmap graphics",
   "repository": {
     "type": "git",
-    "url": "https://github.com/username/hello-world.git"
+    "url": "https://github.com/michael-betz/font_lib"
   },
   "examples": [
     "src/main.cpp"

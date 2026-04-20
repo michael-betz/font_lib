@@ -30,6 +30,9 @@ Then compile and run the simulator with
 pio run
 .pio/build/native/program
 ```
+
+![Screenshot of the included demo](util/screenshot.png)
+
 You can type and the text should change.
 
 Try to change `FB_BPP`, `FB_WIDTH` and `FB_HEIGHT` in `platform.ini`. The demo program should adapt.
