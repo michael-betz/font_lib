@@ -39,8 +39,13 @@ typedef struct {
     // When loading from a header file, these are pointers to the tables in memory
     // When loading from a .fnt file, these are the file-offsets to the tables.
     uint32_t *map_table;  // may be NULL for pure ASCII mapping
+#ifdef FNT_SUPPORT
     glyph_description_t *glyph_description_table;
     uint8_t *glyph_data_table;
+#else
+    const glyph_description_t *glyph_description_table;
+    const uint8_t *glyph_data_table;
+#endif
     uint16_t linespace;
     uint8_t flags;  // See FLAG_* enum above
     char *name;

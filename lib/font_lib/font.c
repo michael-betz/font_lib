@@ -324,7 +324,7 @@ glyphToBuffer(int glyph_index, const glyph_description_t *desc, int offs_x, int 
     if (fntHeader->flags & FLAG_MONOSPACE)
         start_index = glyph_index * n_bytes;
 
-    uint8_t *buff = NULL;
+    const uint8_t *buff = NULL;
 
 #ifdef FNT_SUPPORT
     unsigned end_index = start_index + n_bytes;
