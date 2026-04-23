@@ -74,6 +74,9 @@ int push_str(int x_a,        // x-offset of the anchor point in pixels
              unsigned align  // Anchor point. One of A_LEFT, A_CENTER, A_RIGHT
 );
 
+// Draw characters to the screen like printf. Returns cursor_x.
+int push_print(int x_a, int y_a, unsigned align, const char *format, ...);
+
 // This needs to be implemented by the framebuffer:
 void draw_pixel(int xPixel, int yPixel, uint8_t pix_val);
 

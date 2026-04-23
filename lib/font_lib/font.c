@@ -143,7 +143,7 @@ static int find_glyph_index(unsigned codepoint) {
     }
 
     if (glyph_index < 0 || glyph_index >= fntHeader->n_glyphs) {
-        printf("glyph not found: %d\n", glyph_index);
+        // printf("glyph not found: %d\n", glyph_index);
         return -1;
     }
 
@@ -373,22 +373,24 @@ glyphToBuffer(int glyph_index, const glyph_description_t *desc, int offs_x, int 
 }
 
 static void push_char(unsigned codepoint) {
-    const glyph_description_t *desc;
+    const glyph_description_t *desc = fntHeader->glyph_description_table;
 
     int glyph_index = find_glyph_index(codepoint);
+    // the glyph was not found. Don't output pixels, but advance the cursor
     if (glyph_index < 0)
-        return;
+        goto exit;
 
     desc = get_glyph_description(glyph_index);
     if (desc == NULL) {
         printf("No glyph description found!\n");
-        return;
+        goto exit;
     }
 
     // printf("push_char(%c, %d, %d)\n", (char)codepoint, cursor_x + desc->lsb, cursor_y -
     // desc->tsb);
     glyphToBuffer(glyph_index, desc, cursor_x + desc->lsb, cursor_y - desc->tsb);
 
+exit:
     cursor_x += desc->advance;
 }
 
@@ -475,11 +477,11 @@ int push_str(int x_a, int y_a, const char *c, unsigned n, unsigned align) {
     return cursor_x;
 }
 
-void push_print(unsigned color, const char *format, ...) {
+int push_print(int x_a, int y_a, unsigned align, const char *format, ...) {
     static char buff[128];
     va_list ap;
     va_start(ap, format);
     vsnprintf(buff, sizeof(buff), format, ap);
     va_end(ap);
-    push_str(cursor_x, FB_HEIGHT - 1, buff, sizeof(buff), A_LEFT);
+    return push_str(x_a, y_a, buff, sizeof(buff), align);
 }
