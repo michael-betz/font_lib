@@ -17,7 +17,7 @@ void set_draw_mode(t_draw_mode mode) {
         pixel_ptr = subtract_pixel;
     else if (mode == DRAW_ADD)
         pixel_ptr = add_pixel;
-    else if (mode == DRAW_XOR)
+    else if (mode == DRAW_INV)
         pixel_ptr = invert_pixel;
     else
         pixel_ptr = set_pixel;
@@ -137,15 +137,26 @@ void subtract_pixel(int x, int y, uint8_t value) {
 #endif
 }
 
+// Alpha blending between background and inverted background:
+// (bg * (255 - val) + (255 - bg) * val) / 255
 void invert_pixel(int x, int y, uint8_t value) {
     if (x < x_min || x >= x_max || y < y_min || y >= y_max)
         return;
 #if FB_BPP == 8
-    framebuffer[x + y * FB_WIDTH] ^= 0xFF;
+    uint8_t *tmp = &framebuffer[x + y * FB_WIDTH];
+    *tmp += (int)(value) - (2 * (int)(*tmp) * (int)(value) + 127) / 255;
 #elif FB_BPP == 4
-    framebuffer[x / 2 + y * FB_WIDTH / 2] ^= (x & 1) ? 0x0F : 0xF0;
+    uint8_t *tmp = &framebuffer[x / 2 + y * FB_WIDTH / 2];
+    int backg = (x & 1) ? *tmp & 0x0F : *tmp >> 4;
+    backg |= backg << 4;
+    int new_val = backg + value - ((2 * backg * value + 127) >> 8);
+    if (x & 1)
+        *tmp = (*tmp & 0xF0) | (new_val >> 4);
+    else
+        *tmp = (new_val & 0xF0) | (*tmp & 0x0F);
 #elif FB_BPP == 1
-    framebuffer[x + (y / 8) * FB_WIDTH] ^= 1 << (y & 7);
+    if (value & 0x80)
+        framebuffer[x + (y / 8) * FB_WIDTH] ^= 1 << (y & 7);
 #endif
 }
 

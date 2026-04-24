@@ -13,7 +13,7 @@ I know there are many out there already but none of them ticked all the boxes fo
   - [x] SSD1306 (1 bit) and SSD1322 (4 bit) are supported so far
   - [x] Bits per pixel and framebuffer size are defined at compile time
   - [x] Low level graphics: line, ellipse. Both can be anti-aliased
-  - [ ] Rectangle, filled rectangle, rectangle with rounded corners, filled ellipse
+  - [x] Rectangle, filled rectangle, rectangle with rounded corners, filled ellipse
   - [ ] Higher level graphics: updateable label, message box, button, progress bar
   - [ ] Re-usable screen manager (which screen is shown) and event system (short / long button push events, encoder events)
   - [ ] Re-usable menu system

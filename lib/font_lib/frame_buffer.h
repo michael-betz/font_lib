@@ -21,7 +21,7 @@ typedef enum {
     DRAW_SET,
     DRAW_ADD,
     DRAW_SUB,
-    DRAW_XOR,
+    DRAW_INV,
 } t_draw_mode;
 
 extern uint8_t framebuffer[FB_SIZE];
@@ -45,10 +45,13 @@ void set_draw_region_full();
 // Set a pixel to value. But only within the draw-region.
 void set_pixel(int x, int y, uint8_t value);
 
-// Additively increase the brightness value of a pixel. Used by font.c to draw glyphs
-// Only within the draw-region.
+// Additively increase the brightness value of a pixel
 void add_pixel(int x, int y, uint8_t value);
+
+// Decrease the brightness value of a pixel
 void subtract_pixel(int x, int y, uint8_t value);
+
+// Invert the brightness value of the pixel by interpolating between bg and (255 - bg)
 void invert_pixel(int x, int y, uint8_t value);
 
 // return a pixel value.
