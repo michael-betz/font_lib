@@ -4,6 +4,7 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_blendmode.h>
 #include <fixed.h>
+#include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -49,17 +50,42 @@ static void init_sdl() {
     SDL_SetTextureBlendMode(layer_a, SDL_BLENDMODE_NONE);
 }
 
+static void test_pattern() {
+    for (int i = 0; i <= 5; i++) {
+        int x = 10 + i * 15;
+
+        set_draw_mode(DRAW_SUB);
+        draw_line(x, 5, x, 150);
+        for (int y = 10; y <= 150; y += 15) {
+            draw_line(3, y, 6, y);
+            draw_line(93, y, 96, y);
+        }
+
+        set_draw_mode(DRAW_ADD);
+        draw_rectangle(x, 10, x + i, 10 + 3, 0xA0);
+        fill_rectangle(x, 25, x + i, 25 + 3, 0xA0);
+
+        draw_rectangle_c(x, 40, i, 3, 0xA0);
+        fill_rectangle_c(x, 55, i, 3, 0xA0);
+
+        draw_ellipse(x, 70, i, i, 0xF, 0xA0);
+        fill_ellipse(x, 85, i, i, 0xF, 0xA0);
+
+        fill_ellipse(x, 100, i, i, 0x1, 0xA0);
+        fill_ellipse(x, 115, i, i, 0x2, 0xA0);
+        fill_ellipse(x, 130, i, i, 0x4, 0xA0);
+        fill_ellipse(x, 145, i, i, 0x8, 0xA0);
+    }
+}
+
 int main(int argc, char *args[]) {
     init_sdl();
 
-    bool is_running = true, redraw = true;
-    unsigned frame = 0, align = A_CENTER;
+    bool is_running = true;
+    unsigned frame = 0, align = A_CENTER, radius = 30;
 
     char test_str[256] = "Hello World!\nType to edit :)\n";
     int text_cursor = strnlen(test_str, sizeof(test_str));
-    set_draw_mode(DRAW_ADD);
-    init_from_header(&f_vollkorn);
-    // init_from_header(&f_fixed);
 
     while (is_running) {
         SDL_Event e;
@@ -71,15 +97,15 @@ int main(int argc, char *args[]) {
             case SDL_KEYDOWN:
                 if (e.key.keysym.sym == SDLK_LEFT) {
                     align = A_RIGHT;
-                    set_draw_mode(DRAW_SUB);
                 } else if (e.key.keysym.sym == SDLK_RIGHT) {
                     align = A_LEFT;
-                    set_draw_mode(DRAW_SET);
                 } else if (e.key.keysym.sym == SDLK_UP) {
                     align = A_CENTER;
-                    set_draw_mode(DRAW_ADD);
+                    if (radius < 100)
+                        radius++;
                 } else if (e.key.keysym.sym == SDLK_DOWN) {
-                    set_draw_mode(DRAW_INV);
+                    if (radius > 0)
+                        radius--;
                 } else if (e.key.keysym.sym == SDLK_BACKSPACE && text_cursor > 0) {
                     text_cursor--;
                     test_str[text_cursor] = '\0';
@@ -88,7 +114,6 @@ int main(int argc, char *args[]) {
                     test_str[text_cursor++] = '\n';
                     test_str[text_cursor] = '\0';
                 }
-                redraw = true;
                 break;
             case SDL_TEXTINPUT:
                 // Add new text onto the end of our test string
@@ -96,45 +121,39 @@ int main(int argc, char *args[]) {
                     test_str[text_cursor++] = e.text.text[0];
                     test_str[text_cursor] = '\0';
                 }
-                redraw = true;
                 break;
             }
         }
 
-        if (redraw) {
-            fill(0x10);
+        fill(0x20);
 
-            fill_rectangle(300, 10, 350, 100, 0x20);
-            fill_rectangle(250, 70, 325, 110, 0xFF);
+        set_draw_mode(DRAW_ADD);
+        init_from_header(&f_vollkorn);
+        push_str(FB_WIDTH / 2, 50, test_str, sizeof(test_str), align);
+        init_from_header(&f_fixed);
+        push_str(FB_WIDTH / 2, 150, test_str, sizeof(test_str), align);
 
-            draw_rectangle_r(17, 6, 101, 50, 16, 0xA0);
-            fill_rectangle_r(60, 60, 100, 100, 10, 0x20);
+        set_draw_mode(DRAW_INV);
+        fill_rectangle_rc(FB_WIDTH / 2,
+                          FB_HEIGHT / 2,
+                          (sin(frame / 100.0) + 1) * 150 + 60,
+                          (sin(frame / 150.0) + 1) * 50 + 60,
+                          radius,
+                          0xFF);
 
-            draw_line(-8 + frame, 4, FB_WIDTH / 2, FB_HEIGHT);
-            draw_line(8 + FB_WIDTH - frame, 4, FB_WIDTH / 3, FB_HEIGHT);
-            draw_line(4, -8 + frame, FB_WIDTH, FB_HEIGHT / 2);
-            draw_line(4, 8 + FB_HEIGHT - frame, FB_WIDTH, FB_HEIGHT / 3);
+        test_pattern();
 
-            draw_ellipse(FB_WIDTH / 2 - 8, FB_HEIGHT / 2, frame, 48, 0b1010, 0xFF);
-            draw_ellipse(FB_WIDTH / 2, FB_HEIGHT / 2, frame / 2, frame / 2, 0b0011, 0xFF);
-            draw_ellipse(FB_WIDTH / 2, FB_HEIGHT / 2, frame - 8, frame - 8, 0b1100, 0xFF);
-            draw_ellipse(FB_WIDTH / 2 + 8, FB_HEIGHT / 2, frame, 48, 0b0101, 0xFF);
+        // Copy font_lib frame buffer to layer_a
+        send_frame_buffer();
 
-            push_str(FB_WIDTH / 2, FB_HEIGHT / 4, test_str, sizeof(test_str), align);
-
-            // Copy font_lib frame buffer to layer_a
-            send_frame_buffer();
-
-            // Compose the layers
-            SDL_SetRenderTarget(rr, NULL);  // default backbuffer
-            SDL_RenderSetScale(rr, ZOOM, ZOOM);
-            SDL_RenderClear(rr);
-            SDL_RenderCopy(rr, layer_a, NULL, NULL);
-            SDL_RenderPresent(rr);
-        }
+        // Compose the layers
+        SDL_SetRenderTarget(rr, NULL);  // default backbuffer
+        SDL_RenderSetScale(rr, ZOOM, ZOOM);
+        SDL_RenderClear(rr);
+        SDL_RenderCopy(rr, layer_a, NULL, NULL);
+        SDL_RenderPresent(rr);
 
         SDL_Delay(30);
-        // redraw = false;
         frame++;
     }
 
