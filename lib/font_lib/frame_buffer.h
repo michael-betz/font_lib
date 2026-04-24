@@ -17,7 +17,21 @@
 
 #define FB_SIZE ((FB_WIDTH * FB_HEIGHT * FB_BPP + 7) / 8)
 
+typedef enum {
+    DRAW_SET,
+    DRAW_ADD,
+    DRAW_SUB,
+    DRAW_XOR,
+} t_draw_mode;
+
 extern uint8_t framebuffer[FB_SIZE];
+
+// output a single pixel with a dynamically selected draw mode.
+// Used by font and graphics functions
+extern void (*pixel_ptr)(int, int, uint8_t);
+
+// Select a drawing mode
+void set_draw_mode(t_draw_mode mode);
 
 // Outside this rectangle, pixels will not be modified
 void set_draw_region(int x0, int y0, int x1, int y1);
@@ -28,12 +42,14 @@ void set_draw_region_full();
 // Note that for the below functions, value has always 8 bit range, independent of the FB_BPP
 // setting
 
+// Set a pixel to value. But only within the draw-region.
+void set_pixel(int x, int y, uint8_t value);
+
 // Additively increase the brightness value of a pixel. Used by font.c to draw glyphs
 // Only within the draw-region.
 void add_pixel(int x, int y, uint8_t value);
-
-// Set a pixel to value. But only within the draw-region.
-void set_pixel(int x, int y, uint8_t value);
+void subtract_pixel(int x, int y, uint8_t value);
+void invert_pixel(int x, int y, uint8_t value);
 
 // return a pixel value.
 uint8_t get_pixel(int x, int y);
@@ -41,6 +57,13 @@ uint8_t get_pixel(int x, int y);
 // Set all pixels to a shade. Ignores draw region.
 void fill(uint8_t shade);
 
-// Draw one horizontal line with a certain shade. Ignores draw region.
-// !!! Warning !!! fast implementation, no internal checks!!
-// void fast_h_line(int x, int y, int w, uint8_t value);
+// Optimization potential: set several pixels at once (memset)
+static inline void draw_hline(int x0, int x1, int y, uint8_t value) {
+    for (int x = x0; x <= x1; x++)
+        pixel_ptr(x, y, value);
+}
+
+static inline void draw_vline(int x, int y0, int y1, uint8_t value) {
+    for (int y = y0; y <= y1; y++)
+        pixel_ptr(x, y, value);
+}

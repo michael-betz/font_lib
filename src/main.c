@@ -57,6 +57,7 @@ int main(int argc, char *args[]) {
 
     char test_str[256] = "Hello World!\nType to edit :)\n";
     int text_cursor = strnlen(test_str, sizeof(test_str));
+    set_draw_mode(DRAW_ADD);
     init_from_header(&f_vollkorn);
     // init_from_header(&f_fixed);
 
@@ -70,10 +71,15 @@ int main(int argc, char *args[]) {
             case SDL_KEYDOWN:
                 if (e.key.keysym.sym == SDLK_LEFT) {
                     align = A_RIGHT;
+                    set_draw_mode(DRAW_SUB);
                 } else if (e.key.keysym.sym == SDLK_RIGHT) {
                     align = A_LEFT;
+                    set_draw_mode(DRAW_ADD);
                 } else if (e.key.keysym.sym == SDLK_UP) {
                     align = A_CENTER;
+                    set_draw_mode(DRAW_SET);
+                } else if (e.key.keysym.sym == SDLK_DOWN) {
+                    set_draw_mode(DRAW_XOR);
                 } else if (e.key.keysym.sym == SDLK_BACKSPACE && text_cursor > 0) {
                     text_cursor--;
                     test_str[text_cursor] = '\0';
@@ -96,18 +102,21 @@ int main(int argc, char *args[]) {
         }
 
         if (redraw) {
-            fill(0);
+            fill(0x40);
             push_str(FB_WIDTH / 2, FB_HEIGHT / 4, test_str, sizeof(test_str), align);
 
-            draw_line_aa(-8 + frame, 4, FB_WIDTH / 2, FB_HEIGHT);
-            draw_line_aa(8 + FB_WIDTH - frame, 4, FB_WIDTH / 3, FB_HEIGHT);
-            draw_line_aa(4, -8 + frame, FB_WIDTH, FB_HEIGHT / 2);
-            draw_line_aa(4, 8 + FB_HEIGHT - frame, FB_WIDTH, FB_HEIGHT / 3);
+            draw_line(-8 + frame, 4, FB_WIDTH / 2, FB_HEIGHT);
+            draw_line(8 + FB_WIDTH - frame, 4, FB_WIDTH / 3, FB_HEIGHT);
+            draw_line(4, -8 + frame, FB_WIDTH, FB_HEIGHT / 2);
+            draw_line(4, 8 + FB_HEIGHT - frame, FB_WIDTH, FB_HEIGHT / 3);
 
-            draw_ellipse_aa(FB_WIDTH / 2 - 8, FB_HEIGHT / 2, frame, 48, 0b1010);
-            draw_ellipse_aa(FB_WIDTH / 2, FB_HEIGHT / 2, frame / 2, frame / 2, 0b0011);
-            draw_ellipse_aa(FB_WIDTH / 2, FB_HEIGHT / 2, frame - 8, frame - 8, 0b1100);
-            draw_ellipse_aa(FB_WIDTH / 2 + 8, FB_HEIGHT / 2, frame, 48, 0b0101);
+            draw_ellipse(FB_WIDTH / 2 - 8, FB_HEIGHT / 2, frame, 48, 0b1010, 0xFF);
+            draw_ellipse(FB_WIDTH / 2, FB_HEIGHT / 2, frame / 2, frame / 2, 0b0011, 0xFF);
+            draw_ellipse(FB_WIDTH / 2, FB_HEIGHT / 2, frame - 8, frame - 8, 0b1100, 0xFF);
+            draw_ellipse(FB_WIDTH / 2 + 8, FB_HEIGHT / 2, frame, 48, 0b0101, 0xFF);
+
+            draw_rectangle_r(17, 6, 101, 50, 16, 0x80);
+            fill_rectangle_r(60, 60, 100, 100, 10, 0x80);
 
             // Copy font_lib frame buffer to layer_a
             send_frame_buffer();
@@ -120,7 +129,7 @@ int main(int argc, char *args[]) {
             SDL_RenderPresent(rr);
         }
 
-        SDL_Delay(100);
+        SDL_Delay(30);
         // redraw = false;
         frame++;
     }

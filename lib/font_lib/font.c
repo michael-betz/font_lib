@@ -359,7 +359,7 @@ glyphToBuffer(int glyph_index, const glyph_description_t *desc, int offs_x, int 
                 out_val |= msb_val;
                 msb_val >>= bpp;
             }
-            add_pixel(x + offs_x, y + offs_y, out_val);
+            pixel_ptr(x + offs_x, y + offs_y, out_val);
 
             // drop the bits we have just output
             tmp_byte = (tmp_byte << bpp) & 0xFF;
