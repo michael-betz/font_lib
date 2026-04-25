@@ -87,6 +87,9 @@ int main(int argc, char *args[]) {
     char test_str[256] = "Hello World!\nType to edit :)\n";
     int text_cursor = strnlen(test_str, sizeof(test_str));
 
+    init_from_header(&f_vollkorn);
+    print_font_info();
+
     while (is_running) {
         SDL_Event e;
         while (SDL_PollEvent(&e)) {

@@ -114,7 +114,7 @@ static int binary_search(unsigned target, uint32_t *arr, int length) {
 // Returns NULL on error
 static const glyph_description_t *get_glyph_description(unsigned glyph_index) {
     if (glyph_index >= fntHeader->n_glyphs) {
-        printf("invalid glyph index :( %d\n", glyph_index);
+        D("invalid glyph index :( %d\n", glyph_index);
         return NULL;
     }
 
@@ -143,7 +143,7 @@ static int find_glyph_index(unsigned codepoint) {
     }
 
     if (glyph_index < 0 || glyph_index >= fntHeader->n_glyphs) {
-        // printf("glyph not found: %d\n", glyph_index);
+        // D("glyph not found: %d\n", glyph_index);
         return -1;
     }
 
@@ -152,18 +152,18 @@ static int find_glyph_index(unsigned codepoint) {
 
 void print_font_info() {
     if (fntHeader == NULL) {
-        printf("No font file loaded\n");
+        D("No font file loaded\n");
         return;
     }
 
-    printf("fontName: %s\n", fntHeader->name);
-    printf("n_glyphs: %d\n", fntHeader->n_glyphs);
-    printf("map_start: %d\n", fntHeader->map_start);
-    printf("map_n: %d\n", fntHeader->map_n);
-    printf("linespace: %d\n", fntHeader->linespace);
-    printf("flags: %x\n", fntHeader->flags);
+    D("fontName: %s\n", fntHeader->name);
+    D("n_glyphs: %d\n", fntHeader->n_glyphs);
+    D("map_start: %d\n", fntHeader->map_start);
+    D("map_n: %d\n", fntHeader->map_n);
+    D("linespace: %d\n", fntHeader->linespace);
+    D("flags: %x\n", fntHeader->flags);
     unsigned bpp = 1 << ((fntHeader->flags >> 1) & 3);
-    printf("bpp: %d\n", bpp);
+    D("bpp: %d\n", bpp);
 }
 
 #ifdef FNT_SUPPORT
@@ -196,13 +196,13 @@ static bool load_helper(void **target, int len, const char *name) {
     if (len > 0) {
         *target = malloc(len);
         if (*target == NULL) {
-            printf("Couldn't allocate %s :( %d\n", name, len);
+            D("Couldn't allocate %s :( %d\n", name, len);
             return false;
         }
 
         int n_read = fread(*target, 1, len, fntFile);
         if (n_read != len) {
-            printf("Failed to read %s: %s\n", name, strerror(errno));
+            D("Failed to read %s: %s\n", name, strerror(errno));
             return false;
         }
     }
@@ -218,28 +218,28 @@ bool init_from_file(const char *fileName) {
         return false;
     memcpy(fontFileName, fileName, fontFileNameLen);
 
-    printf("loading %s\n", fontFileName);
+    D("loading %s\n", fontFileName);
 
     fntFile = fopen(fileName, "r");
     if (fntFile == NULL) {
-        printf("Failed to open %s: %s\n", fileName, strerror(errno));
+        D("Failed to open %s: %s\n", fileName, strerror(errno));
         goto error_out;
     }
 
     fntHeader = malloc(sizeof(font_header_t));
     if (fntHeader == NULL) {
-        printf("Couldn't allocate fntHeader\n");
+        D("Couldn't allocate fntHeader\n");
         goto error_out;
     }
 
     int n_read = fread(&fntHeader, sizeof(font_header_t), 1, fntFile);
     if (n_read != 1) {
-        printf("Failed to read fntHeader: %s\n", strerror(errno));
+        D("Failed to read fntHeader: %s\n", strerror(errno));
         goto error_out;
     }
 
     if (fntHeader->magic != 0x005A54BE) {
-        printf("Wrong magic in .fnt file %x\n", (unsigned)fntHeader->magic);
+        D("Wrong magic in .fnt file %x\n", (unsigned)fntHeader->magic);
         goto error_out;
     }
 
@@ -275,7 +275,7 @@ uint8_t *get_bitmap_buff_from_file(const glyph_description_t *desc) {
     } else if (pix_mode == 1) {  // 1 byte per pixel
         pitch = desc->width;
     } else {
-        printf("Don't know this pixel mode: %d\n", pix_mode);
+        D("Don't know this pixel mode: %d\n", pix_mode);
         return;
     }
     unsigned len = pitch * desc->height;
@@ -284,19 +284,19 @@ uint8_t *get_bitmap_buff_from_file(const glyph_description_t *desc) {
         return;
 
     if (fseek(fntFile, data_start, SEEK_SET) == -1) {
-        printf("glyph seek failed :( %s\n", strerror(errno));
+        D("glyph seek failed :( %s\n", strerror(errno));
         return;
     }
 
     uint8_t *buff = malloc(len);
     if (buff == NULL) {
-        printf("glyph overflow :( %s\n", strerror(errno));
+        D("glyph overflow :( %s\n", strerror(errno));
         return NULL;
     }
 
     int n_read = fread(buff, 1, len, fntFile);
     if (n_read != len) {
-        printf("glyph read failed :( %s\n", strerror(errno));
+        D("glyph read failed :( %s\n", strerror(errno));
         free(buff);
         return NULL;
     }
@@ -337,7 +337,7 @@ glyphToBuffer(int glyph_index, const glyph_description_t *desc, int offs_x, int 
 #endif
 
     if (buff == NULL) {
-        printf("Failed to load glyph image!\n");
+        D("Failed to load glyph image!\n");
         return;
     }
 
@@ -382,11 +382,11 @@ static void push_char(unsigned codepoint) {
 
     desc = get_glyph_description(glyph_index);
     if (desc == NULL) {
-        printf("No glyph description found!\n");
+        D("No glyph description found!\n");
         goto exit;
     }
 
-    // printf("push_char(%c, %d, %d)\n", (char)codepoint, cursor_x + desc->lsb, cursor_y -
+    // D("push_char(%c, %d, %d)\n", (char)codepoint, cursor_x + desc->lsb, cursor_y -
     // desc->tsb);
     glyphToBuffer(glyph_index, desc, cursor_x + desc->lsb, cursor_y - desc->tsb);
 
@@ -428,7 +428,7 @@ static int get_str_width(const char *c, unsigned n) {
     }
     utf8_dec('\0');  // reset internal state
 
-    // printf("%s width is %d pixels\n", c, w);
+    // D("%s width is %d pixels\n", c, w);
     return w;
 }
 
@@ -447,7 +447,7 @@ static void set_x_cursor(int x_a, const char *c, unsigned n, unsigned align) {
 
 int push_str(int x_a, int y_a, const char *c, unsigned n, unsigned align) {
     if (fntHeader == NULL) {
-        printf("No font file loaded\n");
+        D("No font file loaded\n");
         return 0;
     }
 
