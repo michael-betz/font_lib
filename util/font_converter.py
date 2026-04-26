@@ -7,6 +7,7 @@ Default output format is anti aliased glyphs with 8 bits / pixel intensity value
 """
 import ctypes
 from enum import IntFlag
+import sys
 import re
 import argparse
 from pathlib import Path
@@ -321,6 +322,7 @@ def convert(args: argparse.Namespace, face: ft.Face):
 
     header = {
         "name": face.family_name.decode(),
+        "copyright_strs": [face.get_best_name_string(n) for n in (0, 10, 13, 14)],
         "n_glyphs": len(cp_set),
         "linespace": face.size.height // 64,
         "flags": flags,
@@ -402,6 +404,8 @@ def export_as_header(
 ):
     name = header["clean_name"]
 
+    copy_str = "\n".join(["// " + s for s in header["copyright_strs"] if len(s) > 0])
+
     with open(out_name, "w") as f:
         print(
             f"""\
@@ -411,6 +415,8 @@ def export_as_header(
 // -----------------------------------
 //  {header["name"]}
 // -----------------------------------
+// {' '.join(sys.argv)}
+{copy_str}
 
 static const uint8_t glyphs_{name}[{len(glyph_data_bs)}] = {{""",
             file=f,
