@@ -395,7 +395,13 @@ exit:
 }
 
 // get bounding box (width and height) of the rendered text
-void fnt_get_bb(const char *c, unsigned n, int *o_left, int *o_right, int *o_top, int *o_bottom) {
+void fnt_get_bb(const char *c,
+                unsigned n,
+                t_align align,
+                int *o_left,
+                int *o_right,
+                int *o_top,
+                int *o_bottom) {
     int left = 20, right = 0, right_max = 0, top = 0, bottom = 0, y_baseline = 0;
     int neg_adv = 0;
     bool is_first = true;
@@ -458,6 +464,16 @@ void fnt_get_bb(const char *c, unsigned n, int *o_left, int *o_right, int *o_top
     if (right > right_max)
         right_max = right;
 
+    // Correct for horizontal alignment
+    if (align == A_RIGHT) {
+        left -= right_max;
+        right_max = 0;
+    } else if (align == A_CENTER) {
+        int tmp = (right_max + left) / 2;
+        left -= tmp;
+        right_max -= tmp;
+    }
+
     if (o_left)
         *o_left = left;
     if (o_right)
@@ -475,7 +491,7 @@ static void set_x_cursor(int x_a, const char *c, unsigned n, t_align align) {
     }
 
     int left = 0, right = 0;
-    fnt_get_bb(c, n, &left, &right, NULL, NULL);
+    fnt_get_bb(c, n, A_LEFT, &left, &right, NULL, NULL);
 
     if (align == A_RIGHT)
         cursor_x = x_a - right;

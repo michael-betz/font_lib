@@ -69,8 +69,9 @@ void print_font_info();
 // o_left and o_right are the horizontal offsets from the anchor point x_a
 // to the left and right edges of the bounding box
 // o_top and o_bottom are the vertical offsets from the baseline y_a
- // to the top and bottom of the bounding box
-void fnt_get_bb(const char *c, unsigned n, int *o_left, int *o_right, int *o_top, int *o_bottom);
+// to the top and bottom of the bounding box
+void fnt_get_bb(
+    const char *c, unsigned n, t_align align, int *o_left, int *o_right, int *o_top, int *o_bottom);
 
 // draws the chars from `c` at a specific position. Returns cursor_x.
 int push_str(int x_a,        // x-offset of the anchor point in pixels

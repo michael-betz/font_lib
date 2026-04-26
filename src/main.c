@@ -137,12 +137,18 @@ int main(int argc, char *args[]) {
 
         // Draw the bounding box
         int left = 0, right = 0, bottom = 0, top = 0;
-        fnt_get_bb(test_str, sizeof(test_str), &left, &right, &top, &bottom);
-        draw_rectangle(FB_WIDTH / 2 + left - 1, 50 + top - 1, FB_WIDTH / 2 + right, 50 + bottom, 0x44);
+        fnt_get_bb(test_str, sizeof(test_str), align, &left, &right, &top, &bottom);
+        draw_rectangle(
+            FB_WIDTH / 2 + left - 1, 50 + top - 1, FB_WIDTH / 2 + right, 50 + bottom, 0x44);
 
         // Draw in a small pixel font
         init_from_header(&f_fixed);
-        push_str(FB_WIDTH / 2, 150, test_str, sizeof(test_str), A_LEFT);
+        push_str(FB_WIDTH / 2, 150, test_str, sizeof(test_str), align);
+
+        // Draw the bounding box
+        fnt_get_bb(test_str, sizeof(test_str), align, &left, &right, &top, &bottom);
+        draw_rectangle(
+            FB_WIDTH / 2 + left - 1, 150 + top - 1, FB_WIDTH / 2 + right, 150 + bottom, 0x44);
 
         // Draw a large rectangle with rounded corners
         set_draw_mode(DRAW_INV);
