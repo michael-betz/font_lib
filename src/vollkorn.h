@@ -4,6 +4,10 @@
 // -----------------------------------
 //  Vollkorn
 // -----------------------------------
+// font_converter.py --add-ascii Vollkorn-Regular.otf
+// Copyright 2018 The Vollkorn Project Authors (https://github.com/FAlthausen/Vollkorn-Typeface)
+// This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is available with a FAQ at: http://scripts.sil.org/OFL
+// http://scripts.sil.org/OFL
 
 static const uint8_t glyphs_vollkorn[24819] = {
  14, 79,166,190,154,255,255,216,125,255,255,190, 96,255,255,164, 67,255,255,140, 38,255,255,118,

@@ -4,6 +4,8 @@
 // -----------------------------------
 //  Fixed
 // -----------------------------------
+// font_converter.py --add-ascii 6x13B.bdf
+
 
 static const uint8_t glyphs_fixed[950] = {
   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  3, 12, 48,195, 12, 48,  3,  0,  0,  0, 13,182,216,
@@ -50,7 +52,7 @@ static const uint8_t glyphs_fixed[950] = {
 
 // GLYPH DESCRIPTION
 static const glyph_description_t glyph_dsc_fixed[1] = {
-    {.width =  6, .height = 13, .lsb =  0, .tsb = 11, .advance = 7, .start_index =  0, },  // U+0020 ' '
+    {.width =  6, .height = 13, .lsb =  0, .tsb = 11, .advance =  7, .start_index =  0, },  // U+0020 ' '
 };
 
 const font_header_t f_fixed = {
