@@ -64,11 +64,13 @@ void init_from_header(const font_header_t *header);
 // Print infos about the loaded font
 void print_font_info();
 
-// get bounding box (width and height in pixels) of the string `c` with `n` characters.
+// get bounding box of the string `c` with `n` characters.
 // Return values (by reference):
-// w is the width of the bounding box, measured from the anchor point x_a
-// top and bottom are the distances from the baseline y_a to the top and bottom of the bounding box
-void fnt_get_bb(const char *c, unsigned n, int *w_out, int *top_out, int *bottom_out);
+// o_left and o_right are the horizontal offsets from the anchor point x_a
+// to the left and right edges of the bounding box
+// o_top and o_bottom are the vertical offsets from the baseline y_a
+ // to the top and bottom of the bounding box
+void fnt_get_bb(const char *c, unsigned n, int *o_left, int *o_right, int *o_top, int *o_bottom);
 
 // draws the chars from `c` at a specific position. Returns cursor_x.
 int push_str(int x_a,        // x-offset of the anchor point in pixels

@@ -395,8 +395,10 @@ exit:
 }
 
 // get bounding box (width and height) of the rendered text
-void fnt_get_bb(const char *c, unsigned n, int *w_out, int *top_out, int *bottom_out) {
-    int w = 0, w_max = 0, top = 0, bottom = 0, y_baseline = 0;
+void fnt_get_bb(const char *c, unsigned n, int *o_left, int *o_right, int *o_top, int *o_bottom) {
+    int left = 20, right = 0, right_max = 0, top = 0, bottom = 0, y_baseline = 0;
+    int neg_adv = 0;
+    bool is_first = true;
 
     while (*c && n > 0) {
         unsigned codepoint = utf8_dec(*c++);
@@ -405,10 +407,15 @@ void fnt_get_bb(const char *c, unsigned n, int *w_out, int *top_out, int *bottom
             continue;
 
         if (codepoint == '\n') {
-            if (w > w_max)
-                w_max = w;
-            w = 0;
+            // For the last character of the line, correct the advance-width
+            right -= neg_adv;
+
+            // Find the max. right value
+            if (right > right_max)
+                right_max = right;
+            right = 0;
             y_baseline += fntHeader->linespace;
+            is_first = true;
             continue;
         }
 
@@ -420,12 +427,22 @@ void fnt_get_bb(const char *c, unsigned n, int *w_out, int *top_out, int *bottom
         if (desc == NULL)
             continue;
 
-        // accumulate the cursor advance width
-        w += desc->advance;
+        // Only the first character can push the left border to the left
+        if (is_first) {
+            if (desc->lsb < left)
+                left = desc->lsb;
+            is_first = false;
+        }
+
+        // accumulate the cursor advance width for all characters
+        right += desc->advance;
+        // distance to go back from the advanced cursor to the right bb of the last character
+        neg_adv = desc->advance - desc->width - desc->lsb;
 
         // tsb is the distance from the baseline to the highest point of the glyph
-        if (desc->tsb > top)
-            top = desc->tsb;
+        // remember, decreasing y goes up!
+        if (-desc->tsb < top)
+            top = -desc->tsb;
 
         // height is the distance from the highest point to the lowest point of the glyph
         int bottom_ = y_baseline - desc->tsb + desc->height;
@@ -434,15 +451,21 @@ void fnt_get_bb(const char *c, unsigned n, int *w_out, int *top_out, int *bottom
     }
     utf8_dec('\0');  // reset internal state
 
-    if (w > w_max)
-        w_max = w;
+    // For the last character of the line, correct the advance-width
+    right -= neg_adv;
 
-    if (w_out)
-        *w_out = w_max;
-    if (top_out)
-        *top_out = top;
-    if (bottom_out)
-        *bottom_out = bottom;
+    // Find the max. right value
+    if (right > right_max)
+        right_max = right;
+
+    if (o_left)
+        *o_left = left;
+    if (o_right)
+        *o_right = right_max;
+    if (o_top)
+        *o_top = top;
+    if (o_bottom)
+        *o_bottom = bottom;
 }
 
 static void set_x_cursor(int x_a, const char *c, unsigned n, t_align align) {
@@ -451,13 +474,13 @@ static void set_x_cursor(int x_a, const char *c, unsigned n, t_align align) {
         return;
     }
 
-    int w_str = 0;
-    fnt_get_bb(c, n, &w_str, NULL, NULL);
+    int left = 0, right = 0;
+    fnt_get_bb(c, n, &left, &right, NULL, NULL);
 
     if (align == A_RIGHT)
-        cursor_x = x_a - w_str;
+        cursor_x = x_a - right;
     else if (align == A_CENTER)
-        cursor_x = x_a - w_str / 2;
+        cursor_x = x_a - (right + left) / 2;
 }
 
 int push_str(int x_a, int y_a, const char *c, unsigned n, t_align align) {
