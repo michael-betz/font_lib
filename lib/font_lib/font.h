@@ -52,9 +52,7 @@ typedef struct {
 } font_header_t;
 
 // Text alignment and horizontal anchor point
-#define A_LEFT 0
-#define A_CENTER 1
-#define A_RIGHT 2
+typedef enum { A_LEFT, A_CENTER, A_RIGHT, A_RIGHT_REF_LEFT } t_align;
 
 #ifdef FNT_SUPPORT
 // Load a <filePrefix>.fnt file. Uses malloc(). Returns true on success.
@@ -66,16 +64,22 @@ void init_from_header(const font_header_t *header);
 // Print infos about the loaded font
 void print_font_info();
 
+// get bounding box (width and height in pixels) of the string `c` with `n` characters.
+// Return values (by reference):
+// w is the width of the bounding box, measured from the anchor point x_a
+// top and bottom are the distances from the baseline y_a to the top and bottom of the bounding box
+void fnt_get_bb(const char *c, unsigned n, int *w_out, int *top_out, int *bottom_out);
+
 // draws the chars from `c` at a specific position. Returns cursor_x.
 int push_str(int x_a,        // x-offset of the anchor point in pixels
-             int y_a,        // y-offset in pixels
+             int y_a,        // y-offset of the baseline in pixels
              const char *c,  // the UTF8 string to draw (can be zero terminated)
              unsigned n,     // length of the string
-             unsigned align  // Anchor point. One of A_LEFT, A_CENTER, A_RIGHT
+             t_align align   // Anchor point. One of A_LEFT, A_CENTER, A_RIGHT
 );
 
 // Draw characters to the screen like printf. Returns cursor_x.
-int push_print(int x_a, int y_a, unsigned align, const char *format, ...);
+int push_print(int x_a, int y_a, t_align align, const char *format, ...);
 
 // This needs to be implemented by the framebuffer:
 void draw_pixel(int xPixel, int yPixel, uint8_t pix_val);

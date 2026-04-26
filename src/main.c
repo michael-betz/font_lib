@@ -130,12 +130,21 @@ int main(int argc, char *args[]) {
 
         fill(0x20);
 
+        // Draw in a big anti-aliased font
         set_draw_mode(DRAW_ADD);
         init_from_header(&f_vollkorn);
         push_str(FB_WIDTH / 2, 50, test_str, sizeof(test_str), align);
-        init_from_header(&f_fixed);
-        push_str(FB_WIDTH / 2, 150, test_str, sizeof(test_str), align);
 
+        // Draw in a small pixel font
+        init_from_header(&f_fixed);
+        push_str(FB_WIDTH / 2, 150, test_str, sizeof(test_str), A_LEFT);
+
+        // Draw the bounding box to test it
+        int w = 0, bottom = 0, top = 0;
+        fnt_get_bb(test_str, sizeof(test_str), &w, &top, &bottom);
+        draw_rectangle(FB_WIDTH / 2 - 1, 150 - top, FB_WIDTH / 2 + w, 150 + bottom, 0x88);
+
+        // Draw a large rectangle with rounded corners
         set_draw_mode(DRAW_INV);
         fill_rectangle_rc(FB_WIDTH / 2,
                           FB_HEIGHT / 2,

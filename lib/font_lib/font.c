@@ -394,64 +394,80 @@ exit:
     cursor_x += desc->advance;
 }
 
-static int get_char_width(unsigned codepoint) {
-    const glyph_description_t *desc;
+// get bounding box (width and height) of the rendered text
+void fnt_get_bb(const char *c, unsigned n, int *w_out, int *top_out, int *bottom_out) {
+    int w = 0, w_max = 0, top = 0, bottom = 0, y_baseline = 0;
 
-    int glyph_index = find_glyph_index(codepoint);
-    if (glyph_index < 0)
-        return 0;
-
-    desc = get_glyph_description(glyph_index);
-    if (desc == NULL)
-        return 0;
-
-    return desc->advance;
-}
-
-static int get_str_width(const char *c, unsigned n) {
-    const char *p = c;
-    int w = 0;
-
-    if (c == NULL)
-        return w;
-
-    while (*p && n > 0) {
-        unsigned codepoint = utf8_dec(*p++);
+    while (*c && n > 0) {
+        unsigned codepoint = utf8_dec(*c++);
         n--;
         if (codepoint == 0)
             continue;
 
-        if (codepoint == '\n')
-            break;
+        if (codepoint == '\n') {
+            if (w > w_max)
+                w_max = w;
+            w = 0;
+            y_baseline += fntHeader->linespace;
+            continue;
+        }
 
-        w += (get_char_width(codepoint));
+        int glyph_index = find_glyph_index(codepoint);
+        if (glyph_index < 0)
+            glyph_index = 0;  // fall back to first glyph, if index is not found
+
+        const glyph_description_t *desc = get_glyph_description(glyph_index);
+        if (desc == NULL)
+            continue;
+
+        // accumulate the cursor advance width
+        w += desc->advance;
+
+        // tsb is the distance from the baseline to the highest point of the glyph
+        if (desc->tsb > top)
+            top = desc->tsb;
+
+        // height is the distance from the highest point to the lowest point of the glyph
+        int bottom_ = y_baseline - desc->tsb + desc->height;
+        if (bottom_ > bottom)
+            bottom = bottom_;
     }
     utf8_dec('\0');  // reset internal state
 
-    // D("%s width is %d pixels\n", c, w);
-    return w;
+    if (w > w_max)
+        w_max = w;
+
+    if (w_out)
+        *w_out = w_max;
+    if (top_out)
+        *top_out = top;
+    if (bottom_out)
+        *bottom_out = bottom;
 }
 
-static void set_x_cursor(int x_a, const char *c, unsigned n, unsigned align) {
+static void set_x_cursor(int x_a, const char *c, unsigned n, t_align align) {
     if (align == A_LEFT) {
         cursor_x = x_a;
         return;
     }
 
-    int w_str = get_str_width(c, n);
+    int w_str = 0;
+    fnt_get_bb(c, n, &w_str, NULL, NULL);
+
     if (align == A_RIGHT)
         cursor_x = x_a - w_str;
     else if (align == A_CENTER)
         cursor_x = x_a - w_str / 2;
 }
 
-int push_str(int x_a, int y_a, const char *c, unsigned n, unsigned align) {
+int push_str(int x_a, int y_a, const char *c, unsigned n, t_align align) {
     if (fntHeader == NULL) {
         D("No font file loaded\n");
         return 0;
     }
 
     cursor_y = y_a;
+    // TODO, I think we only need to get the BB once to align everything ...
     set_x_cursor(x_a, c, n, align);
 
     while (*c && n > 0) {
@@ -477,7 +493,7 @@ int push_str(int x_a, int y_a, const char *c, unsigned n, unsigned align) {
     return cursor_x;
 }
 
-int push_print(int x_a, int y_a, unsigned align, const char *format, ...) {
+int push_print(int x_a, int y_a, t_align align, const char *format, ...) {
     static char buff[128];
     va_list ap;
     va_start(ap, format);
