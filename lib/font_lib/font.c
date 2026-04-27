@@ -406,6 +406,9 @@ void fnt_get_bb(const char *c,
     int neg_adv = 0;
     bool is_first = true;
 
+    if (c == NULL)
+        return;
+
     while (*c && n > 0) {
         unsigned codepoint = utf8_dec(*c++);
         n--;
@@ -505,8 +508,10 @@ int push_str(int x_a, int y_a, const char *c, unsigned n, t_align align) {
         return 0;
     }
 
+    if (c == NULL)
+        return cursor_x;
+
     cursor_y = y_a;
-    // TODO, I think we only need to get the BB once to align everything ...
     set_x_cursor(x_a, c, n, align);
 
     while (*c && n > 0) {
