@@ -136,8 +136,8 @@ static int find_glyph_index(unsigned codepoint) {
         glyph_index = codepoint - fntHeader->map_start;
     } else if (fntHeader->map_table != NULL) {
         // otherwise binary search in fntHeader->map_table
-        glyph_index =
-            binary_search(codepoint, fntHeader->map_table, fntHeader->n_glyphs - fntHeader->map_n);
+        glyph_index = binary_search(
+            codepoint, (uint32_t *)fntHeader->map_table, fntHeader->n_glyphs - fntHeader->map_n);
         if (glyph_index > -1)
             glyph_index += fntHeader->map_n;
     }
@@ -151,6 +151,7 @@ static int find_glyph_index(unsigned codepoint) {
 }
 
 void print_font_info() {
+#if (DEBUG == 1)
     if (fntHeader == NULL) {
         D("No font file loaded\n");
         return;
@@ -164,6 +165,7 @@ void print_font_info() {
     D("flags: %x\n", fntHeader->flags);
     unsigned bpp = 1 << ((fntHeader->flags >> 1) & 3);
     D("bpp: %d\n", bpp);
+#endif
 }
 
 #ifdef FNT_SUPPORT

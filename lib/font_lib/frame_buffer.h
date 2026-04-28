@@ -45,7 +45,7 @@ void set_draw_mode(t_draw_mode mode);
 void set_draw_region(int x0, int y0, int x1, int y1);
 
 // removes a previously set draw-region restriction
-void set_draw_region_full();
+void set_draw_region_full(void);
 
 // Note that for the below functions, value has always 8 bit range, independent of the FB_BPP
 // setting

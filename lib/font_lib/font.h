@@ -38,11 +38,12 @@ typedef struct {
 
     // When loading from a header file, these are pointers to the tables in memory
     // When loading from a .fnt file, these are the file-offsets to the tables.
-    uint32_t *map_table;  // may be NULL for pure ASCII mapping
 #ifdef FNT_SUPPORT
+    uint32_t *map_table;  // may be NULL for pure ASCII mapping
     glyph_description_t *glyph_description_table;
     uint8_t *glyph_data_table;
 #else
+    const uint32_t *map_table;
     const glyph_description_t *glyph_description_table;
     const uint8_t *glyph_data_table;
 #endif
@@ -62,7 +63,7 @@ bool init_from_file(const char *filePrefix);
 void init_from_header(const font_header_t *header);
 
 // Print infos about the loaded font
-void print_font_info();
+void print_font_info(void);
 
 // get bounding box of the string `c` with `n` characters.
 // Return values (by reference):

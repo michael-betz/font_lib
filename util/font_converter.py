@@ -445,7 +445,7 @@ static const glyph_description_t glyph_dsc_{name}[{len(glyph_props)}] = {{""",
         if len(map_table) > 0:
             cp_table_name = f"code_points_{name}"
             print(
-                f"static const unsigned {cp_table_name}[{len(map_table)}] = {{",
+                f"static const uint32_t {cp_table_name}[{len(map_table)}] = {{",
                 file=f,
             )
             print_table(map_table, w=19, w_v=6, f=f)
