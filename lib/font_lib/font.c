@@ -406,7 +406,7 @@ void fnt_get_bb(const char *c,
                 int *o_top,
                 int *o_bottom) {
     // left and right edge of the bounding box, with respect to H_LEFT anchor point
-    int left = 0, right = 0, right_max = 0;
+    int left = 20, right = 0, right_max = 0;
     // top and bottom edge of the bounding box, with respect to V_BASELINE anchor point
     int top = 0, bottom = 0;
     int y_baseline = 0, neg_adv = 0;
@@ -482,9 +482,9 @@ void fnt_get_bb(const char *c,
         left -= right_max;
         right_max = 0;
     } else if ((align & 0xF) == H_MIDDLE) {
-        int mid = (right_max + left) / 2;
-        left -= mid;
-        right_max -= mid;
+        int mid = (right_max - left) / 2;
+        left = -mid;
+        right_max = mid;
     }
 
     // Correct for specified vertical anchor point
@@ -516,15 +516,19 @@ void fnt_get_bb(const char *c,
 
 // This is called whenever a new line starts, before drawing the next glyph to the screen
 // It sets the cursor to the right horizontal position, taking the user-specified alignment into
-// account. x_a is the position of the horizaontal anchor point.
+// account. x_a is the position of the horizontal anchor point.
 static void set_x_cursor(const int x_a, const char *c, const unsigned n, t_align align) {
     cursor_x = x_a;
     if ((align & 0xF) == H_LEFT)
         return;
 
-    int left = 0;
-    fnt_get_bb(c, n, true, align, &left, NULL, NULL, NULL);
-    cursor_x += left;
+    int left = 0, right = 0;
+    fnt_get_bb(c, n, true, 0, &left, &right, NULL, NULL);
+
+    if ((align & 0x0F) == H_RIGHT)
+        cursor_x -= right;
+    else if ((align & 0x0F) == H_MIDDLE)
+        cursor_x -= (right - left) / 2;
 }
 
 int push_str(const int x_a, const int y_a, const char *c, unsigned n, t_align align) {

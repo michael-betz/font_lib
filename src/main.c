@@ -156,7 +156,7 @@ int main(int argc, char *args[]) {
         // Draw the bounding box
         int left = 0, right = 0, bottom = 0, top = 0;
         fnt_get_bb(test_str, sizeof(test_str), false, align, &left, &right, &top, &bottom);
-        draw_rectangle(txt_x + left - 1, txt_y + top, txt_x + right, txt_y + bottom, 0x44);
+        draw_rectangle(txt_x + left, txt_y + top, txt_x + right, txt_y + bottom, 0x44);
 
         // Draw in a small pixel font
         init_from_header(&f_fixed);
@@ -164,7 +164,7 @@ int main(int argc, char *args[]) {
 
         // Draw the bounding box
         fnt_get_bb(test_str, sizeof(test_str), false, align, &left, &right, &top, &bottom);
-        draw_rectangle(txt_x + left - 1, txt_y2 + top, FB_WIDTH / 2 + right, txt_y2 + bottom, 0x44);
+        draw_rectangle(txt_x + left, txt_y2 + top, FB_WIDTH / 2 + right, txt_y2 + bottom, 0x44);
 
         // Draw anchor points of the 2 texts
         draw_line(txt_x - 3, txt_y, txt_x + 3, txt_y);
