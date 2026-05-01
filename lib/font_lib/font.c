@@ -399,13 +399,17 @@ exit:
 // get bounding box (width and height) of the rendered text
 void fnt_get_bb(const char *c,
                 unsigned n,
+                bool single_line_mode,
                 t_align align,
                 int *o_left,
                 int *o_right,
                 int *o_top,
                 int *o_bottom) {
-    int left = 20, right = 0, right_max = 0, top = 0, bottom = 0, y_baseline = 0;
-    int neg_adv = 0;
+    // left and right edge of the bounding box, with respect to H_LEFT anchor point
+    int left = 0, right = 0, right_max = 0;
+    // top and bottom edge of the bounding box, with respect to V_BASELINE anchor point
+    int top = 0, bottom = 0;
+    int y_baseline = 0, neg_adv = 0;
     bool is_first = true;
 
     if (c == NULL)
@@ -417,7 +421,10 @@ void fnt_get_bb(const char *c,
         if (codepoint == 0)
             continue;
 
-        if (codepoint == '\n') {
+        if (codepoint == '\n' || codepoint == '\r') {
+            if (single_line_mode)
+                break;
+
             // For the last character of the line, correct the advance-width
             right -= neg_adv;
 
@@ -427,6 +434,7 @@ void fnt_get_bb(const char *c,
             right = 0;
             y_baseline += fntHeader->linespace;
             is_first = true;
+
             continue;
         }
 
@@ -469,14 +477,31 @@ void fnt_get_bb(const char *c,
     if (right > right_max)
         right_max = right;
 
-    // Correct for horizontal alignment
-    if (align == A_RIGHT) {
+    // Correct for specified horizontal anchor point
+    if ((align & 0xF) == H_RIGHT) {
         left -= right_max;
         right_max = 0;
-    } else if (align == A_CENTER) {
-        int tmp = (right_max + left) / 2;
-        left -= tmp;
-        right_max -= tmp;
+    } else if ((align & 0xF) == H_MIDDLE) {
+        int mid = (right_max + left) / 2;
+        left -= mid;
+        right_max -= mid;
+    }
+
+    // Correct for specified vertical anchor point
+    if ((align & 0xF0) == V_TOP) {
+        // bottom = offset to go from the top to the bottom. Positive number.
+        bottom -= top;
+        top = 0;
+    } else if ((align & 0xF0) == V_BOTTOM) {
+        // top = offset to go from bottom to top. Negative number.
+        top -= bottom;
+        bottom = 0;
+    } else if ((align & 0xF0) == V_MIDDLE) {
+        // bottom = offset to go from middle to bottom. Positive number.
+        int mid = (bottom - top) / 2;
+        bottom = mid;
+        // top = offset to go from middle to top. Negative number.
+        top = -mid;
     }
 
     if (o_left)
@@ -489,22 +514,20 @@ void fnt_get_bb(const char *c,
         *o_bottom = bottom;
 }
 
-static void set_x_cursor(int x_a, const char *c, unsigned n, t_align align) {
-    if (align == A_LEFT) {
-        cursor_x = x_a;
+// This is called whenever a new line starts, before drawing the next glyph to the screen
+// It sets the cursor to the right horizontal position, taking the user-specified alignment into
+// account. x_a is the position of the horizaontal anchor point.
+static void set_x_cursor(const int x_a, const char *c, const unsigned n, t_align align) {
+    cursor_x = x_a;
+    if ((align & 0xF) == H_LEFT)
         return;
-    }
 
-    int left = 0, right = 0;
-    fnt_get_bb(c, n, A_LEFT, &left, &right, NULL, NULL);
-
-    if (align == A_RIGHT)
-        cursor_x = x_a - right;
-    else if (align == A_CENTER)
-        cursor_x = x_a - (right + left) / 2;
+    int left = 0;
+    fnt_get_bb(c, n, true, align, &left, NULL, NULL, NULL);
+    cursor_x += left;
 }
 
-int push_str(int x_a, int y_a, const char *c, unsigned n, t_align align) {
+int push_str(const int x_a, const int y_a, const char *c, unsigned n, t_align align) {
     if (fntHeader == NULL) {
         D("No font file loaded\n");
         return 0;
@@ -513,7 +536,19 @@ int push_str(int x_a, int y_a, const char *c, unsigned n, t_align align) {
     if (c == NULL)
         return cursor_x;
 
+    // Calculate the y-position for the first glyph, depending on vertical alignment
+    int top = 0, bottom = 0;
+    fnt_get_bb(c, n, false, 0, NULL, NULL, &top, &bottom);
+
     cursor_y = y_a;
+
+    if ((align & 0xF0) == V_TOP)
+        cursor_y = y_a - top;
+    else if ((align & 0xF0) == V_BOTTOM)
+        cursor_y = y_a - bottom;
+    else if ((align & 0xF0) == V_MIDDLE)
+        cursor_y = y_a - (top + bottom) / 2;
+
     set_x_cursor(x_a, c, n, align);
 
     while (*c && n > 0) {

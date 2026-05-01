@@ -82,9 +82,9 @@ int main(int argc, char *args[]) {
     init_sdl();
 
     bool is_running = true;
-    unsigned frame = 0, align = A_CENTER, radius = 30;
+    unsigned frame = 0, align = H_MIDDLE, radius = 30;
 
-    char test_str[256] = "Hello World!\nType to edit :)\n";
+    char test_str[256] = "Hello World!\nType to edit :)";
     int text_cursor = strnlen(test_str, sizeof(test_str));
 
     init_from_header(&f_vollkorn);
@@ -98,17 +98,34 @@ int main(int argc, char *args[]) {
                 is_running = false;
                 break;
             case SDL_KEYDOWN:
-                if (e.key.keysym.sym == SDLK_LEFT) {
-                    align = A_RIGHT;
-                } else if (e.key.keysym.sym == SDLK_RIGHT) {
-                    align = A_LEFT;
+                // Cursor keys = horizontal alignment
+                if (e.key.keysym.sym == SDLK_RIGHT) {
+                    printf("H_RIGHT\n");
+                    align = (align & ~0xF) | H_RIGHT;
+                } else if (e.key.keysym.sym == SDLK_LEFT) {
+                    printf("H_LEFT\n");
+                    align = (align & ~0xF) | H_LEFT;
                 } else if (e.key.keysym.sym == SDLK_UP) {
-                    align = A_CENTER;
+                    printf("H_MIDDLE\n");
+                    align = (align & ~0xF) | H_MIDDLE;
                     if (radius < 100)
                         radius++;
                 } else if (e.key.keysym.sym == SDLK_DOWN) {
                     if (radius > 0)
                         radius--;
+                } else if (e.key.keysym.sym == '1') {
+                    // 1234 = vertical alignment
+                    printf("V_TOP\n");
+                    align = (align & ~0xF0) | V_TOP;
+                } else if (e.key.keysym.sym == '2') {
+                    printf("V_MIDDLE\n");
+                    align = (align & ~0xF0) | V_MIDDLE;
+                } else if (e.key.keysym.sym == '3') {
+                    printf("V_BASELINE\n");
+                    align = (align & ~0xF0) | V_BASELINE;
+                } else if (e.key.keysym.sym == '4') {
+                    printf("V_BOTTOM\n");
+                    align = (align & ~0xF0) | V_BOTTOM;
                 } else if (e.key.keysym.sym == SDLK_BACKSPACE && text_cursor > 0) {
                     text_cursor--;
                     test_str[text_cursor] = '\0';
@@ -133,31 +150,36 @@ int main(int argc, char *args[]) {
         // Draw in a big anti-aliased font
         set_draw_mode(DRAW_ADD);
         init_from_header(&f_vollkorn);
-        push_str(FB_WIDTH / 2, 50, test_str, sizeof(test_str), align);
+        const int txt_x = FB_WIDTH / 2, txt_y = 50, txt_y2 = 150;
+        push_str(txt_x, txt_y, test_str, sizeof(test_str), align);
 
         // Draw the bounding box
         int left = 0, right = 0, bottom = 0, top = 0;
-        fnt_get_bb(test_str, sizeof(test_str), align, &left, &right, &top, &bottom);
-        draw_rectangle(
-            FB_WIDTH / 2 + left - 1, 50 + top - 1, FB_WIDTH / 2 + right, 50 + bottom, 0x44);
+        fnt_get_bb(test_str, sizeof(test_str), false, align, &left, &right, &top, &bottom);
+        draw_rectangle(txt_x + left - 1, txt_y + top, txt_x + right, txt_y + bottom, 0x44);
 
         // Draw in a small pixel font
         init_from_header(&f_fixed);
-        push_str(FB_WIDTH / 2, 150, test_str, sizeof(test_str), align);
+        push_str(txt_x, txt_y2, test_str, sizeof(test_str), align);
 
         // Draw the bounding box
-        fnt_get_bb(test_str, sizeof(test_str), align, &left, &right, &top, &bottom);
-        draw_rectangle(
-            FB_WIDTH / 2 + left - 1, 150 + top - 1, FB_WIDTH / 2 + right, 150 + bottom, 0x44);
+        fnt_get_bb(test_str, sizeof(test_str), false, align, &left, &right, &top, &bottom);
+        draw_rectangle(txt_x + left - 1, txt_y2 + top, FB_WIDTH / 2 + right, txt_y2 + bottom, 0x44);
+
+        // Draw anchor points of the 2 texts
+        draw_line(txt_x - 3, txt_y, txt_x + 3, txt_y);
+        draw_line(txt_x, txt_y - 3, txt_x, txt_y + 3);
+        draw_line(txt_x - 3, txt_y2, txt_x + 3, txt_y2);
+        draw_line(txt_x, txt_y2 - 3, txt_x, txt_y2 + 3);
 
         // Draw a large rectangle with rounded corners
-        set_draw_mode(DRAW_INV);
-        fill_rectangle_rc(FB_WIDTH / 2,
-                          FB_HEIGHT / 2,
-                          (sin(frame / 100.0) + 1) * 150 + 60,
-                          (sin(frame / 150.0) + 1) * 50 + 60,
-                          radius,
-                          0xFF);
+        // set_draw_mode(DRAW_INV);
+        // fill_rectangle_rc(FB_WIDTH / 2,
+        //                   FB_HEIGHT / 2,
+        //                   (sin(frame / 100.0) + 1) * 150 + 60,
+        //                   (sin(frame / 150.0) + 1) * 50 + 60,
+        //                   radius,
+        //                   0xFF);
 
         test_pattern();
 

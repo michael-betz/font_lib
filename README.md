@@ -35,6 +35,8 @@ pio run
 
 You can type and the text should change.
 
+The keys `left`, `up`, `right` will change the horizontal alignment, `1234` changes the vertical alignment and anchor position. These are following the [Pillow Image Font conventions](https://pillow.readthedocs.io/en/stable/handbook/text-anchors.html#text-anchors).
+
 Try to change `FB_BPP`, `FB_WIDTH` and `FB_HEIGHT` in `platform.ini`. The demo program should adapt.
 
 Try to convert a font-file with `util/font_converter.py` and replace the included demo font `src/vollkorn.h`.

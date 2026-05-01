@@ -52,8 +52,19 @@ typedef struct {
     char *name;
 } font_header_t;
 
-// Text alignment and horizontal anchor point
-typedef enum { A_LEFT, A_CENTER, A_RIGHT, A_RIGHT_REF_LEFT } t_align;
+// Text alignment and horizontal anchor point. Following Pillow Image Font conventions
+// https://pillow.readthedocs.io/en/stable/handbook/text-anchors.html#text-anchors
+// Combine one of H_* and one of V_* with |.
+// The default (0-value) corresponds to H_LEFT | V_BASELINE
+typedef enum {
+    H_LEFT = 0,
+    H_MIDDLE = 1,
+    H_RIGHT = 2,
+    V_BASELINE = (0 << 4),
+    V_TOP = (1 << 4),
+    V_MIDDLE = (2 << 4),
+    V_BOTTOM = (3 << 4),
+} t_align;
 
 #ifdef FNT_SUPPORT
 // Load a <filePrefix>.fnt file. Uses malloc(). Returns true on success.
@@ -69,21 +80,28 @@ void print_font_info(void);
 // Return values (by reference):
 // o_left and o_right are the horizontal offsets from the anchor point x_a
 // to the left and right edges of the bounding box
+//   for H_LEFT, o_left is 0 by definition.
 // o_top and o_bottom are the vertical offsets from the baseline y_a
 // to the top and bottom of the bounding box
-void fnt_get_bb(
-    const char *c, unsigned n, t_align align, int *o_left, int *o_right, int *o_top, int *o_bottom);
+void fnt_get_bb(const char *c,
+                unsigned n,
+                bool single_line_mode,
+                t_align align,
+                int *o_left,
+                int *o_right,
+                int *o_top,
+                int *o_bottom);
 
 // draws the chars from `c` at a specific position. Returns cursor_x.
 int push_str(int x_a,        // x-offset of the anchor point in pixels
              int y_a,        // y-offset of the baseline in pixels
              const char *c,  // the UTF8 string to draw (can be zero terminated)
              unsigned n,     // length of the string
-             t_align align   // Anchor point. One of A_LEFT, A_CENTER, A_RIGHT
+             t_align align   // Anchor point.
 );
 
 // Draw characters to the screen like printf. Returns cursor_x.
-int push_print(int x_a, int y_a, t_align align, const char *format, ...);
+int push_print(const int x_a, const int y_a, t_align align, const char *format, ...);
 
 // This needs to be implemented by the framebuffer:
 void draw_pixel(int xPixel, int yPixel, uint8_t pix_val);
