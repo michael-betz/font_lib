@@ -87,8 +87,8 @@ int main(int argc, char *args[]) {
     char test_str[256] = "Hello World!\nType to edit :)";
     int text_cursor = strnlen(test_str, sizeof(test_str));
 
-    init_from_header(&f_vollkorn);
-    print_font_info();
+    fnt_init_from_header(&f_vollkorn);
+    fnt_print_info();
 
     while (is_running) {
         SDL_Event e;
@@ -149,22 +149,17 @@ int main(int argc, char *args[]) {
 
         // Draw in a big anti-aliased font
         set_draw_mode(DRAW_ADD);
-        init_from_header(&f_vollkorn);
+        fnt_init_from_header(&f_vollkorn);
         const int txt_x = FB_WIDTH / 2, txt_y = 50, txt_y2 = 150;
-        push_str(txt_x, txt_y, test_str, sizeof(test_str), align);
-
+        fnt_bbox_t bb = fnt_draw_text(txt_x, txt_y, test_str, sizeof(test_str), align);
         // Draw the bounding box
-        int left = 0, right = 0, bottom = 0, top = 0;
-        fnt_get_bb(test_str, sizeof(test_str), false, align, &left, &right, &top, &bottom);
-        draw_rectangle(txt_x + left, txt_y + top, txt_x + right, txt_y + bottom, 0x44);
+        draw_rectangle(bb.left - 1, bb.top - 1, bb.right + 1, bb.bottom + 1, 0x44);
 
         // Draw in a small pixel font
-        init_from_header(&f_fixed);
-        push_str(txt_x, txt_y2, test_str, sizeof(test_str), align);
-
+        fnt_init_from_header(&f_fixed);
+        bb = fnt_draw_printf(txt_x, txt_y2, align, test_str, frame);
         // Draw the bounding box
-        fnt_get_bb(test_str, sizeof(test_str), false, align, &left, &right, &top, &bottom);
-        draw_rectangle(txt_x + left, txt_y2 + top, FB_WIDTH / 2 + right, txt_y2 + bottom, 0x44);
+        draw_rectangle(bb.left - 1, bb.top - 1, bb.right + 1, bb.bottom + 1, 0x44);
 
         // Draw anchor points of the 2 texts
         draw_line(txt_x - 3, txt_y, txt_x + 3, txt_y);

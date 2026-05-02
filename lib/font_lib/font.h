@@ -64,46 +64,44 @@ typedef enum {
     V_TOP = (1 << 4),
     V_MIDDLE = (2 << 4),
     V_BOTTOM = (3 << 4),
-} t_align;
+} fnt_align_t;
+
+// Bounding box representing absolute pixel coordinates
+typedef struct {
+    int left;
+    int right;
+    int top;
+    int bottom;
+} fnt_bbox_t;
 
 #ifdef FNT_SUPPORT
 // Load a <filePrefix>.fnt file. Uses malloc(). Returns true on success.
-bool init_from_file(const char *filePrefix);
+bool fnt_init_from_file(const char *filePrefix);
 #endif
 
-void init_from_header(const font_header_t *header);
+void fnt_init_from_header(const font_header_t *header);
 
 // Print infos about the loaded font
-void print_font_info(void);
+void fnt_print_info(void);
 
-// get bounding box of the string `c` with `n` characters.
-// Return values (by reference):
-// o_left and o_right are the horizontal offsets from the anchor point x_a
-// to the left and right edges of the bounding box
-//   for H_LEFT, o_left is 0 by definition.
-// o_top and o_bottom are the vertical offsets from the baseline y_a
-// to the top and bottom of the bounding box
-void fnt_get_bb(const char *c,
-                unsigned n,
-                bool single_line_mode,
-                t_align align,
-                int *o_left,
-                int *o_right,
-                int *o_top,
-                int *o_bottom);
-
-// draws the chars from `c` at a specific position. Returns cursor_x.
-int push_str(int x_a,        // x-offset of the anchor point in pixels
-             int y_a,        // y-offset of the baseline in pixels
-             const char *c,  // the UTF8 string to draw (can be zero terminated)
-             unsigned n,     // length of the string
-             t_align align   // Anchor point.
+// draws the chars from `c` at a specific position specified by x_a, y_a and align.
+// Returns the bounding box of the drawn pixels.
+fnt_bbox_t fnt_draw_text(int x_a,           // x-offset of the horizontal anchor point in pixels
+                         int y_a,           // y-offset of the vertical anchor point in pixels
+                         const char *c,     // the UTF8 string to draw (can be zero terminated)
+                         unsigned n,        // max. length of the string
+                         fnt_align_t align  // Anchor point position and alignment.
 );
 
-// Draw characters to the screen like printf. Returns cursor_x.
-int push_print(const int x_a, const int y_a, t_align align, const char *format, ...);
+// As above but doesn't draw. Just returns the bounding box of the pixels which would be drawn.
+fnt_bbox_t fnt_measure_text(int x_a, int y_a, const char *c, unsigned n, fnt_align_t align);
 
-// This needs to be implemented by the framebuffer:
-void draw_pixel(int xPixel, int yPixel, uint8_t pix_val);
+// Draw characters to the screen like printf. Returns the bounding box.
+fnt_bbox_t
+fnt_draw_printf(const int x_a, const int y_a, fnt_align_t align, const char *format, ...);
+
+// As above but doesn't draw. Just returns the bounding box of the pixels which would be drawn.
+fnt_bbox_t
+fnt_measure_printf(const int x_a, const int y_a, fnt_align_t align, const char *format, ...);
 
 #endif

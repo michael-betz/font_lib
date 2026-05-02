@@ -150,7 +150,7 @@ static int find_glyph_index(unsigned codepoint) {
     return glyph_index;
 }
 
-void print_font_info() {
+void fnt_print_info() {
 #if (DEBUG == 1)
     if (fntHeader == NULL) {
         D("No font file loaded\n");
@@ -307,7 +307,7 @@ uint8_t *get_bitmap_buff_from_file(const glyph_description_t *desc) {
 }
 #endif  // FNT_SUPPORT
 
-void init_from_header(const font_header_t *header) {
+void fnt_init_from_header(const font_header_t *header) {
 #ifdef FNT_SUPPORT
     freeFont();
 #endif
@@ -374,11 +374,16 @@ glyphToBuffer(int glyph_index, const glyph_description_t *desc, int offs_x, int 
 #endif
 }
 
-static void push_char(unsigned codepoint) {
+static void push_char(unsigned codepoint,
+                      bool do_draw,
+                      int *abs_min_x,
+                      int *abs_max_x,
+                      int *abs_min_y,
+                      int *abs_max_y) {
     const glyph_description_t *desc = fntHeader->glyph_description_table;
 
     int glyph_index = find_glyph_index(codepoint);
-    // the glyph was not found. Don't output pixels, but advance the cursor
+    // the glyph was not found. Don't output pixels, but fallback to glyph 0 and advance the cursor
     if (glyph_index < 0)
         goto exit;
 
@@ -388,29 +393,42 @@ static void push_char(unsigned codepoint) {
         goto exit;
     }
 
-    // D("push_char(%c, %d, %d)\n", (char)codepoint, cursor_x + desc->lsb, cursor_y -
-    // desc->tsb);
-    glyphToBuffer(glyph_index, desc, cursor_x + desc->lsb, cursor_y - desc->tsb);
+    // Calculate absolute screen pixel boundaries for the ink of this specific glyph
+    int g_left = cursor_x + desc->lsb;
+    int g_right = g_left + desc->width;
+    int g_top = cursor_y - desc->tsb;
+    int g_bottom = g_top + desc->height;
+
+    // Only expand the visual bounding box if this character actually has pixels
+    // This prevents space characters from artificially widening the bounding box
+    if (desc->width > 0 && desc->height > 0) {
+        if (abs_min_x && g_left < *abs_min_x)
+            *abs_min_x = g_left;
+        if (abs_max_x && g_right > *abs_max_x)
+            *abs_max_x = g_right;
+        if (abs_min_y && g_top < *abs_min_y)
+            *abs_min_y = g_top;
+        if (abs_max_y && g_bottom > *abs_max_y)
+            *abs_max_y = g_bottom;
+    }
+
+    if (do_draw)
+        glyphToBuffer(glyph_index, desc, g_left, g_top);
 
 exit:
     cursor_x += desc->advance;
 }
 
-// get bounding box (width and height) of the rendered text
-void fnt_get_bb(const char *c,
-                unsigned n,
-                bool single_line_mode,
-                t_align align,
-                int *o_left,
-                int *o_right,
-                int *o_top,
-                int *o_bottom) {
-    // left and right edge of the bounding box, with respect to H_LEFT anchor point
-    int left = 20, right = 0, right_max = 0;
-    // top and bottom edge of the bounding box, with respect to V_BASELINE anchor point
-    int top = 0, bottom = 0;
-    int y_baseline = 0, neg_adv = 0;
-    bool is_first = true;
+// Internal function to get relative pixel bounding box of the rendered text
+// This simulates a pen drawing glyphs starting at (0, 0) and tracks the exact pixel boundaries
+static void fnt_get_bb(const char *c, unsigned n, bool single_line_mode, fnt_bbox_t *out_bbox) {
+    int pen_x = 0;
+    int pen_y = 0;
+    int min_x = INT_MAX;
+    int max_x = INT_MIN;
+    int min_y = INT_MAX;
+    int max_y = INT_MIN;
+    bool has_glyphs = false;
 
     if (c == NULL)
         return;
@@ -424,134 +442,92 @@ void fnt_get_bb(const char *c,
         if (codepoint == '\n' || codepoint == '\r') {
             if (single_line_mode)
                 break;
-
-            // For the last character of the line, correct the advance-width
-            right -= neg_adv;
-
-            // Find the max. right value
-            if (right > right_max)
-                right_max = right;
-            right = 0;
-            y_baseline += fntHeader->linespace;
-            is_first = true;
-
+            pen_x = 0;
+            if (codepoint == '\n') {
+                pen_y += fntHeader->linespace;
+            }
             continue;
         }
 
         int glyph_index = find_glyph_index(codepoint);
         if (glyph_index < 0)
-            glyph_index = 0;  // fall back to first glyph, if index is not found
+            glyph_index = 0;
 
         const glyph_description_t *desc = get_glyph_description(glyph_index);
         if (desc == NULL)
             continue;
 
-        // Only the first character can push the left border to the left
-        if (is_first) {
-            if (desc->lsb < left)
-                left = desc->lsb;
-            is_first = false;
-        }
+        int g_left = pen_x + desc->lsb;
+        int g_right = g_left + desc->width;
+        int g_top = pen_y - desc->tsb;
+        int g_bottom = g_top + desc->height;
 
-        // accumulate the cursor advance width for all characters
-        right += desc->advance;
-        // distance to go back from the advanced cursor to the right bb of the last character
-        neg_adv = desc->advance - desc->width - desc->lsb;
+        if (g_left < min_x)
+            min_x = g_left;
+        if (g_right > max_x)
+            max_x = g_right;
+        if (g_top < min_y)
+            min_y = g_top;
+        if (g_bottom > max_y)
+            max_y = g_bottom;
 
-        // tsb is the distance from the baseline to the highest point of the glyph
-        // remember, decreasing y goes up!
-        if (-desc->tsb < top)
-            top = -desc->tsb;
-
-        // height is the distance from the highest point to the lowest point of the glyph
-        int bottom_ = y_baseline - desc->tsb + desc->height;
-        if (bottom_ > bottom)
-            bottom = bottom_;
+        pen_x += desc->advance;
+        has_glyphs = true;
     }
-    utf8_dec('\0');  // reset internal state
+    utf8_dec('\0');
 
-    // For the last character of the line, correct the advance-width
-    right -= neg_adv;
-
-    // Find the max. right value
-    if (right > right_max)
-        right_max = right;
-
-    // Correct for specified horizontal anchor point
-    if ((align & 0xF) == H_RIGHT) {
-        left -= right_max;
-        right_max = 0;
-    } else if ((align & 0xF) == H_MIDDLE) {
-        int mid = (right_max - left) / 2;
-        left = -mid;
-        right_max = mid;
+    if (!has_glyphs) {
+        min_x = max_x = min_y = max_y = 0;
     }
 
-    // Correct for specified vertical anchor point
-    if ((align & 0xF0) == V_TOP) {
-        // bottom = offset to go from the top to the bottom. Positive number.
-        bottom -= top;
-        top = 0;
-    } else if ((align & 0xF0) == V_BOTTOM) {
-        // top = offset to go from bottom to top. Negative number.
-        top -= bottom;
-        bottom = 0;
-    } else if ((align & 0xF0) == V_MIDDLE) {
-        // bottom = offset to go from middle to bottom. Positive number.
-        int mid = (bottom - top) / 2;
-        bottom = mid;
-        // top = offset to go from middle to top. Negative number.
-        top = -mid;
+    if (out_bbox) {
+        out_bbox->left = min_x;
+        out_bbox->right = max_x;
+        out_bbox->top = min_y;
+        out_bbox->bottom = max_y;
     }
-
-    if (o_left)
-        *o_left = left;
-    if (o_right)
-        *o_right = right_max;
-    if (o_top)
-        *o_top = top;
-    if (o_bottom)
-        *o_bottom = bottom;
 }
 
 // This is called whenever a new line starts, before drawing the next glyph to the screen
 // It sets the cursor to the right horizontal position, taking the user-specified alignment into
 // account. x_a is the position of the horizontal anchor point.
-static void set_x_cursor(const int x_a, const char *c, const unsigned n, t_align align) {
+static void set_x_cursor(const int x_a, const char *c, const unsigned n, fnt_align_t align) {
+    fnt_bbox_t bbox = {0};
+    fnt_get_bb(c, n, true, &bbox);
+
     cursor_x = x_a;
-    if ((align & 0xF) == H_LEFT)
-        return;
 
-    int left = 0, right = 0;
-    fnt_get_bb(c, n, true, 0, &left, &right, NULL, NULL);
-
-    if ((align & 0x0F) == H_RIGHT)
-        cursor_x -= right;
+    if ((align & 0x0F) == H_LEFT)
+        cursor_x = x_a - bbox.left;
+    else if ((align & 0x0F) == H_RIGHT)
+        cursor_x = x_a - bbox.right;
     else if ((align & 0x0F) == H_MIDDLE)
-        cursor_x -= (right - left) / 2;
+        cursor_x = x_a - (bbox.left + bbox.right) / 2;
 }
 
-int push_str(const int x_a, const int y_a, const char *c, unsigned n, t_align align) {
-    if (fntHeader == NULL) {
-        D("No font file loaded\n");
-        return 0;
-    }
+static fnt_bbox_t
+fnt_text(const int x_a, const int y_a, const char *c, unsigned n, fnt_align_t align, bool do_draw) {
+    // Default fallback in case of errors or empty strings
+    fnt_bbox_t result = {x_a, x_a, y_a, y_a};
 
-    if (c == NULL)
-        return cursor_x;
+    if (fntHeader == NULL || c == NULL || n == 0)
+        return result;
 
-    // Calculate the y-position for the first glyph, depending on vertical alignment
-    int top = 0, bottom = 0;
-    fnt_get_bb(c, n, false, 0, NULL, NULL, &top, &bottom);
+    int abs_min_x = INT_MAX;
+    int abs_max_x = INT_MIN;
+    int abs_min_y = INT_MAX;
+    int abs_max_y = INT_MIN;
 
+    // Set cursor_y to get the requested vertical alignment
+    fnt_bbox_t block_bounds = {0};
+    fnt_get_bb(c, n, false, &block_bounds);
     cursor_y = y_a;
-
     if ((align & 0xF0) == V_TOP)
-        cursor_y = y_a - top;
+        cursor_y = y_a - block_bounds.top;
     else if ((align & 0xF0) == V_BOTTOM)
-        cursor_y = y_a - bottom;
+        cursor_y = y_a - block_bounds.bottom;
     else if ((align & 0xF0) == V_MIDDLE)
-        cursor_y = y_a - (top + bottom) / 2;
+        cursor_y = y_a - (block_bounds.top + block_bounds.bottom) / 2;
 
     set_x_cursor(x_a, c, n, align);
 
@@ -572,17 +548,51 @@ int push_str(const int x_a, const int y_a, const char *c, unsigned n, t_align al
             continue;
         }
 
-        push_char(codepoint);
+        // push_char will update the absolute trackers
+        push_char(codepoint, do_draw, &abs_min_x, &abs_max_x, &abs_min_y, &abs_max_y);
     }
     utf8_dec('\0');  // reset internal state
-    return cursor_x;
+
+    // If the string contained actual printable characters, write the real bounds
+    if (abs_min_x != INT_MAX) {
+        result.left = abs_min_x;
+        result.right = abs_max_x;
+        result.top = abs_min_y;
+        result.bottom = abs_max_y;
+    }
+
+    return result;
 }
 
-int push_print(int x_a, int y_a, t_align align, const char *format, ...) {
+fnt_bbox_t
+fnt_draw_text(const int x_a, const int y_a, const char *c, unsigned n, fnt_align_t align) {
+    fnt_text(x_a, y_a, c, n, align, true);
+}
+
+fnt_bbox_t
+fnt_measure_text(const int x_a, const int y_a, const char *c, unsigned n, fnt_align_t align) {
+    fnt_text(x_a, y_a, c, n, align, false);
+}
+
+static fnt_bbox_t
+fnt_printf(int x_a, int y_a, fnt_align_t align, bool do_draw, const char *format, va_list argp) {
     static char buff[128];
-    va_list ap;
-    va_start(ap, format);
-    vsnprintf(buff, sizeof(buff), format, ap);
-    va_end(ap);
-    return push_str(x_a, y_a, buff, sizeof(buff), align);
+    vsnprintf(buff, sizeof(buff), format, argp);
+    return fnt_text(x_a, y_a, buff, sizeof(buff), align, do_draw);
+}
+
+fnt_bbox_t fnt_measure_printf(int x_a, int y_a, fnt_align_t align, const char *format, ...) {
+    va_list argp;
+    va_start(argp, format);
+    fnt_bbox_t bb = fnt_printf(x_a, y_a, align, false, format, argp);
+    va_end(argp);
+    return bb;
+}
+
+fnt_bbox_t fnt_draw_printf(int x_a, int y_a, fnt_align_t align, const char *format, ...) {
+    va_list argp;
+    va_start(argp, format);
+    fnt_bbox_t bb = fnt_printf(x_a, y_a, align, true, format, argp);
+    va_end(argp);
+    return bb;
 }
