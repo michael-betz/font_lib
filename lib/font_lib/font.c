@@ -383,14 +383,14 @@ static void push_char(unsigned codepoint,
     const glyph_description_t *desc = fntHeader->glyph_description_table;
 
     int glyph_index = find_glyph_index(codepoint);
-    // the glyph was not found. Don't output pixels, but fallback to glyph 0 and advance the cursor
-    if (glyph_index < 0)
-        goto exit;
 
-    desc = get_glyph_description(glyph_index);
-    if (desc == NULL) {
-        D("No glyph description found!\n");
-        goto exit;
+    // If glyph not found, fallback to glyph 0 (space) but don't output pixels
+    if (glyph_index >= 0) {
+        desc = get_glyph_description(glyph_index);
+        if (desc == NULL) {
+            D("No glyph description found!\n");
+            glyph_index = -1;
+        }
     }
 
     // Calculate absolute screen pixel boundaries for the ink of this specific glyph
@@ -399,23 +399,18 @@ static void push_char(unsigned codepoint,
     int g_top = cursor_y - desc->tsb;
     int g_bottom = g_top + desc->height;
 
-    // Only expand the visual bounding box if this character actually has pixels
-    // This prevents space characters from artificially widening the bounding box
-    if (desc->width > 0 && desc->height > 0) {
-        if (abs_min_x && g_left < *abs_min_x)
-            *abs_min_x = g_left;
-        if (abs_max_x && g_right > *abs_max_x)
-            *abs_max_x = g_right;
-        if (abs_min_y && g_top < *abs_min_y)
-            *abs_min_y = g_top;
-        if (abs_max_y && g_bottom > *abs_max_y)
-            *abs_max_y = g_bottom;
-    }
+    if (abs_min_x && g_left < *abs_min_x)
+        *abs_min_x = g_left;
+    if (abs_max_x && g_right > *abs_max_x)
+        *abs_max_x = g_right;
+    if (abs_min_y && g_top < *abs_min_y)
+        *abs_min_y = g_top;
+    if (abs_max_y && g_bottom > *abs_max_y)
+        *abs_max_y = g_bottom;
 
-    if (do_draw)
+    if (do_draw && glyph_index >= 0)
         glyphToBuffer(glyph_index, desc, g_left, g_top);
 
-exit:
     cursor_x += desc->advance;
 }
 
@@ -566,12 +561,12 @@ fnt_text(const int x_a, const int y_a, const char *c, unsigned n, fnt_align_t al
 
 fnt_bbox_t
 fnt_draw_text(const int x_a, const int y_a, const char *c, unsigned n, fnt_align_t align) {
-    fnt_text(x_a, y_a, c, n, align, true);
+    return fnt_text(x_a, y_a, c, n, align, true);
 }
 
 fnt_bbox_t
 fnt_measure_text(const int x_a, const int y_a, const char *c, unsigned n, fnt_align_t align) {
-    fnt_text(x_a, y_a, c, n, align, false);
+    return fnt_text(x_a, y_a, c, n, align, false);
 }
 
 static fnt_bbox_t
