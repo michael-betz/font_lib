@@ -147,10 +147,12 @@ int main(int argc, char *args[]) {
 
         fill(0x20);
 
+        // Keep the text anchor point at a fixed position
+        const int txt_x = FB_WIDTH / 2, txt_y = 50, txt_y2 = 150;
+
         // Draw in a big anti-aliased font
         set_draw_mode(DRAW_ADD);
         fnt_init_from_header(&f_vollkorn);
-        const int txt_x = FB_WIDTH / 2, txt_y = 50, txt_y2 = 150;
         fnt_bbox_t bb = fnt_draw_text(txt_x, txt_y, test_str, sizeof(test_str), align);
         // Draw the bounding box
         draw_rectangle(bb.left - 1, bb.top - 1, bb.right + 1, bb.bottom + 1, 0x44);
@@ -162,6 +164,7 @@ int main(int argc, char *args[]) {
         draw_rectangle(bb.left - 1, bb.top - 1, bb.right + 1, bb.bottom + 1, 0x44);
 
         // Draw anchor points of the 2 texts
+        set_draw_mode(DRAW_INV);
         draw_line(txt_x - 3, txt_y, txt_x + 3, txt_y);
         draw_line(txt_x, txt_y - 3, txt_x, txt_y + 3);
         draw_line(txt_x - 3, txt_y2, txt_x + 3, txt_y2);
