@@ -30,38 +30,24 @@ unsigned get_event_flags(void) {
     return tmp;
 }
 
-// --- Label Widget ---
-void draw_label(widget_t *self, bool is_focused, bool is_editing) {
-    // Cast the generic data pointer to our specific label state
-    char *text = (char *)self->data;
-
-    // Use the font pointer to swap fonts before drawing!
-    fnt_init_from_header(&f_fixed);
-
-    // Draw the text using the parameters
-    int center_y = self->bounds.top + ((self->bounds.bottom - self->bounds.top) / 2);
-    int center_x = self->bounds.left + ((self->bounds.right - self->bounds.left) / 2);
-
-    fnt_draw_text(center_x, center_y, text, 64, H_MIDDLE | V_MIDDLE);
-}
-
 // --- Page 1: Settings ---
 static widget_t settings_widgets[] = {
     // id, bounds, can_focus, draw_cb, event_cb, data pointer
-    {1, {10, 200, 20, 32}, false, draw_label, NULL, "Hello"},
-    {2, {10, 200, 36, 48}, false, draw_label, NULL, "World"},
+    {1, {10, 32, 20, 32}, false, draw_simple_static_label, NULL, "Hello"},
+    {2, {64, 128, 20, 32}, false, draw_simple_static_label, NULL, "World"},
 };
 
 // --- Page 2: Network ---
 static widget_t network_widgets[] = {
     // id, bounds, can_focus, draw_cb, event_cb, data pointer
-    {4, {10, 246, 20, 32}, false, draw_label, NULL, "IP: 192.168.1.50"},
-    {5, {10, 100, 36, 48}, false, draw_label, NULL, "Reconnect"},
+    {4, {10, 246, 20, 32}, false, draw_simple_static_label, NULL, "IP: 192.168.1.50"},
+    {5, {10, 100, 36, 48}, false, draw_simple_static_label, NULL, "Reconnect"},
 };
 
 // --- The Pages Array ---
 static page_t my_pages[] = {
-    {"Settings", settings_widgets, 2, 0},  // 3 widgets, start with index 0 focused
+    // tab_name, widgets*, num_widgets, focused_index
+    {"Settings", settings_widgets, 2, 0},
     {"Network", network_widgets, 2, 0},
 };
 
@@ -70,13 +56,15 @@ static gui_t gui = {
     .pages = my_pages,
     .num_pages = 2,
     .active_page = 0,
-    .state = STATE_NAV_TABS  // Start by letting the user choose a tab
+    .state = NAV_TABS,
 };
 
 void test_widget_gui(void) {
     static unsigned frame = 0;
-    if (frame == 0)
+    if (frame == 0) {
         set_gui(&gui);
-    widget_gui_update();
+        fnt_init_from_header(&f_fixed);
+    }
+    widget_gui_update(frame == 0);
     frame++;
 }

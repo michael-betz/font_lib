@@ -40,7 +40,7 @@ struct widget_s {
     uint8_t id;
     bbox_t bounds;   // The bounding box (we use this for drawing focus borders!)
     bool can_focus;  // Some static widgets don't need focus
-    void (*draw)(widget_t *self, bool is_focused, bool is_editing);
+    void (*draw)(widget_t *self, bool is_focused, bool is_editing, bool full_redraw);
     // Returns true if the widget consumed the event, false if the GUI should handle it
     bool (*on_event)(widget_t *self, unsigned events, bool is_editing);
     void *data;  // Pointer to the actual string, integer, etc.
@@ -56,9 +56,9 @@ typedef struct {
 
 // 3. The Main GUI Context
 typedef enum {
-    STATE_NAV_TABS,     // Turning encoder switches tabs
-    STATE_NAV_WIDGETS,  // Turning encoder switches focus between widgets
-    STATE_EDIT_WIDGET   // Turning encoder changes a widget's value (e.g., volume slider)
+    NAV_TABS,     // Turning encoder switches tabs
+    NAV_WIDGETS,  // Turning encoder switches focus between widgets
+    EDIT_WIDGET   // Turning encoder changes a widget's value (e.g., volume slider)
 } gui_state_t;
 
 typedef struct {
@@ -72,9 +72,13 @@ typedef struct {
 void set_gui(gui_t *val);
 
 // Call this in the main loop to draw a new frame
-void widget_gui_update(void);
+void widget_gui_update(bool full_redraw);
 
 // External interface. This needs to be implemented somewhere else...
 // returns the instantaneous state of the encoder and back button (in the 2 LSBs)
 // the other bits are used to indicate events. See the EV_ flags above.
 unsigned get_event_flags(void);
+
+// Widgets
+
+void draw_simple_static_label(widget_t *self, bool is_focused, bool is_editing, bool full_redraw);

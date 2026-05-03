@@ -53,7 +53,7 @@ static void init_sdl() {
 }
 
 int main(int argc, char *args[]) {
-    static int test_mode = 0;
+    static int test_mode = 1;
     init_sdl();
 
     bool is_running = true;

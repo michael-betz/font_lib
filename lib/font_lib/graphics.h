@@ -9,6 +9,9 @@ typedef struct {
     int bottom;
 } bbox_t;
 
+// Enlarge (or shrink) a bounding box
+bbox_t bb_add_spacing(bbox_t bb, int spacing);
+
 // Graphics primitives
 
 // Draw a line from (x0, y0) to (x1, y1)

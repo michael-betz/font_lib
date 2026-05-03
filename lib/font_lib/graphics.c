@@ -96,6 +96,14 @@ void draw_line(int x0, int y0, int x1, int y1) {
 #endif
 }
 
+bbox_t bb_add_spacing(bbox_t bb, int spacing) {
+    bb.left -= spacing;
+    bb.right += spacing;
+    bb.top -= spacing;
+    bb.bottom += spacing;
+    return bb;
+}
+
 // ----------------------------
 //  Rectangles
 // ----------------------------
