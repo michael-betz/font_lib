@@ -50,7 +50,7 @@ typedef struct {
 #endif
     uint16_t linespace;
     uint8_t flags;  // See FLAG_* enum above
-    char *name;
+    const char *name;
 } font_header_t;
 
 // Text alignment and horizontal anchor point. Following Pillow Image Font conventions
