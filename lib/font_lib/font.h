@@ -1,6 +1,7 @@
 #ifndef FONT_H
 #define FONT_H
 
+#include "graphics.h"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -66,14 +67,6 @@ typedef enum {
     V_BOTTOM = (3 << 4),
 } fnt_align_t;
 
-// Bounding box representing absolute pixel coordinates
-typedef struct {
-    int left;
-    int right;
-    int top;
-    int bottom;
-} fnt_bbox_t;
-
 #ifdef FNT_SUPPORT
 // Load a <filePrefix>.fnt file. Uses malloc(). Returns true on success.
 bool fnt_init_from_file(const char *filePrefix);
@@ -86,22 +79,20 @@ void fnt_print_info(void);
 
 // draws the chars from `c` at a specific position specified by x_a, y_a and align.
 // Returns the bounding box of the drawn pixels.
-fnt_bbox_t fnt_draw_text(int x_a,           // x-offset of the horizontal anchor point in pixels
-                         int y_a,           // y-offset of the vertical anchor point in pixels
-                         const char *c,     // the UTF8 string to draw (can be zero terminated)
-                         unsigned n,        // max. length of the string
-                         fnt_align_t align  // Anchor point position and alignment.
+bbox_t fnt_draw_text(int x_a,           // x-offset of the horizontal anchor point in pixels
+                     int y_a,           // y-offset of the vertical anchor point in pixels
+                     const char *c,     // the UTF8 string to draw (can be zero terminated)
+                     unsigned n,        // max. length of the string
+                     fnt_align_t align  // Anchor point position and alignment.
 );
 
 // As above but doesn't draw. Just returns the bounding box of the pixels which would be drawn.
-fnt_bbox_t fnt_measure_text(int x_a, int y_a, const char *c, unsigned n, fnt_align_t align);
+bbox_t fnt_measure_text(int x_a, int y_a, const char *c, unsigned n, fnt_align_t align);
 
 // Draw characters to the screen like printf. Returns the bounding box.
-fnt_bbox_t
-fnt_draw_printf(const int x_a, const int y_a, fnt_align_t align, const char *format, ...);
+bbox_t fnt_draw_printf(const int x_a, const int y_a, fnt_align_t align, const char *format, ...);
 
 // As above but doesn't draw. Just returns the bounding box of the pixels which would be drawn.
-fnt_bbox_t
-fnt_measure_printf(const int x_a, const int y_a, fnt_align_t align, const char *format, ...);
+bbox_t fnt_measure_printf(const int x_a, const int y_a, fnt_align_t align, const char *format, ...);
 
 #endif

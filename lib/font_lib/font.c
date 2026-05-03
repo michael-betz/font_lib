@@ -416,7 +416,7 @@ static void push_char(unsigned codepoint,
 
 // Internal function to get relative pixel bounding box of the rendered text
 // This simulates a pen drawing glyphs starting at (0, 0) and tracks the exact pixel boundaries
-static void fnt_get_bb(const char *c, unsigned n, bool single_line_mode, fnt_bbox_t *out_bbox) {
+static void fnt_get_bb(const char *c, unsigned n, bool single_line_mode, bbox_t *out_bbox) {
     int pen_x = 0;
     int pen_y = 0;
     int min_x = INT_MAX;
@@ -487,7 +487,7 @@ static void fnt_get_bb(const char *c, unsigned n, bool single_line_mode, fnt_bbo
 // It sets the cursor to the right horizontal position, taking the user-specified alignment into
 // account. x_a is the position of the horizontal anchor point.
 static void set_x_cursor(const int x_a, const char *c, const unsigned n, fnt_align_t align) {
-    fnt_bbox_t bbox = {0};
+    bbox_t bbox = {0};
     fnt_get_bb(c, n, true, &bbox);
 
     cursor_x = x_a;
@@ -500,10 +500,10 @@ static void set_x_cursor(const int x_a, const char *c, const unsigned n, fnt_ali
         cursor_x = x_a - (bbox.left + bbox.right) / 2;
 }
 
-static fnt_bbox_t
+static bbox_t
 fnt_text(const int x_a, const int y_a, const char *c, unsigned n, fnt_align_t align, bool do_draw) {
     // Default fallback in case of errors or empty strings
-    fnt_bbox_t result = {x_a, x_a, y_a, y_a};
+    bbox_t result = {x_a, x_a, y_a, y_a};
 
     if (fntHeader == NULL || c == NULL || n == 0)
         return result;
@@ -514,7 +514,7 @@ fnt_text(const int x_a, const int y_a, const char *c, unsigned n, fnt_align_t al
     int abs_max_y = INT_MIN;
 
     // Set cursor_y to get the requested vertical alignment
-    fnt_bbox_t block_bounds = {0};
+    bbox_t block_bounds = {0};
     fnt_get_bb(c, n, false, &block_bounds);
     cursor_y = y_a;
     if ((align & 0xF0) == V_TOP)
@@ -559,35 +559,34 @@ fnt_text(const int x_a, const int y_a, const char *c, unsigned n, fnt_align_t al
     return result;
 }
 
-fnt_bbox_t
-fnt_draw_text(const int x_a, const int y_a, const char *c, unsigned n, fnt_align_t align) {
+bbox_t fnt_draw_text(const int x_a, const int y_a, const char *c, unsigned n, fnt_align_t align) {
     return fnt_text(x_a, y_a, c, n, align, true);
 }
 
-fnt_bbox_t
+bbox_t
 fnt_measure_text(const int x_a, const int y_a, const char *c, unsigned n, fnt_align_t align) {
     return fnt_text(x_a, y_a, c, n, align, false);
 }
 
-static fnt_bbox_t
+static bbox_t
 fnt_printf(int x_a, int y_a, fnt_align_t align, bool do_draw, const char *format, va_list argp) {
     static char buff[128];
     vsnprintf(buff, sizeof(buff), format, argp);
     return fnt_text(x_a, y_a, buff, sizeof(buff), align, do_draw);
 }
 
-fnt_bbox_t fnt_measure_printf(int x_a, int y_a, fnt_align_t align, const char *format, ...) {
+bbox_t fnt_measure_printf(int x_a, int y_a, fnt_align_t align, const char *format, ...) {
     va_list argp;
     va_start(argp, format);
-    fnt_bbox_t bb = fnt_printf(x_a, y_a, align, false, format, argp);
+    bbox_t bb = fnt_printf(x_a, y_a, align, false, format, argp);
     va_end(argp);
     return bb;
 }
 
-fnt_bbox_t fnt_draw_printf(int x_a, int y_a, fnt_align_t align, const char *format, ...) {
+bbox_t fnt_draw_printf(int x_a, int y_a, fnt_align_t align, const char *format, ...) {
     va_list argp;
     va_start(argp, format);
-    fnt_bbox_t bb = fnt_printf(x_a, y_a, align, true, format, argp);
+    bbox_t bb = fnt_printf(x_a, y_a, align, true, format, argp);
     va_end(argp);
     return bb;
 }

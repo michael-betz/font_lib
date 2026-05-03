@@ -1,6 +1,14 @@
 #pragma once
 #include <stdint.h>
 
+// Bounding box representing absolute pixel coordinates
+typedef struct {
+    int left;
+    int right;
+    int top;
+    int bottom;
+} bbox_t;
+
 // Graphics primitives
 
 // Draw a line from (x0, y0) to (x1, y1)
@@ -15,12 +23,19 @@ void fill_rectangle(int x0, int y0, int x1, int y1, uint8_t value);
 void draw_rectangle_c(int xc, int yc, int w, int h, uint8_t value);
 void fill_rectangle_c(int xc, int yc, int w, int h, uint8_t value);
 
+// Draw a rectangle around a bounding box
+void draw_rectangle_bb(bbox_t bb, uint8_t value);
+void fill_rectangle_bb(bbox_t bb, uint8_t value);
+
 // Draw a rectangle from (x0, y0) to (x1, y1) with corner radius r
 void draw_rectangle_r(int x0, int y0, int x1, int y1, int r, uint8_t value);
 void fill_rectangle_r(int x0, int y0, int x1, int y1, int r, uint8_t value);
 
 void draw_rectangle_rc(int xc, int yc, int w, int h, int r, uint8_t value);
 void fill_rectangle_rc(int xc, int yc, int w, int h, int r, uint8_t value);
+
+void draw_rectangle_rbb(bbox_t bb, int r, uint8_t value);
+void fill_rectangle_rbb(bbox_t bb, int r, uint8_t value);
 
 // Draw an ellipse outline centered at (xc, yc) with radius (rx, ry)
 // anti-aliased if FB_BPP > 1

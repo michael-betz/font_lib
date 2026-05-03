@@ -110,6 +110,10 @@ void draw_rectangle_c(int xc, int yc, int w, int h, uint8_t value) {
     draw_rectangle(xc - w / 2, yc - h / 2, xc + w / 2, yc + h / 2, value);
 }
 
+void draw_rectangle_bb(bbox_t bb, uint8_t value) {
+    draw_rectangle(bb.left, bb.top, bb.right, bb.bottom, value);
+}
+
 void fill_rectangle(int x0, int y0, int x1, int y1, uint8_t value) {
     for (int y = y0; y <= y1; y++)
         draw_hline(x0, x1, y, value);
@@ -117,6 +121,10 @@ void fill_rectangle(int x0, int y0, int x1, int y1, uint8_t value) {
 
 void fill_rectangle_c(int xc, int yc, int w, int h, uint8_t value) {
     fill_rectangle(xc - w / 2, yc - h / 2, xc + w / 2, yc + h / 2, value);
+}
+
+void fill_rectangle_bb(bbox_t bb, uint8_t value) {
+    fill_rectangle(bb.left, bb.top, bb.right, bb.bottom, value);
 }
 
 void fill_rectangle_r(int x0, int y0, int x1, int y1, int r, uint8_t value) {
@@ -200,6 +208,14 @@ void draw_rectangle_rc(int xc, int yc, int w, int h, int r, uint8_t value) {
 
 void fill_rectangle_rc(int xc, int yc, int w, int h, int r, uint8_t value) {
     fill_rectangle_r(xc - w / 2, yc - h / 2, xc + w / 2, yc + h / 2, r, value);
+}
+
+void draw_rectangle_rbb(bbox_t bb, int r, uint8_t value) {
+    draw_rectangle_r(bb.left, bb.top, bb.right, bb.bottom, r, value);
+}
+
+void fill_rectangle_rbb(bbox_t bb, int r, uint8_t value) {
+    fill_rectangle_r(bb.left, bb.top, bb.right, bb.bottom, r, value);
 }
 
 // ----------------------------

@@ -409,6 +409,7 @@ def export_as_header(
     with open(out_name, "w") as f:
         print(
             f"""\
+#pragma once
 #include <stdint.h>
 #include <stdio.h>
 #include <font.h>
