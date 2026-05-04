@@ -4,167 +4,165 @@
 #include "graphics.h"
 #include <stddef.h>
 
-extern const font_header_t f_fixed;
+// GUI State Machine
+typedef enum { MODE_SLIDE, MODE_FOCUS, MODE_EDIT } gui_mode_t;
 
-static gui_t *g_gui = NULL;
+static Screen **slides;
+static uint8_t slide_count = 0;
+static uint8_t cur_slide = 0;
+static uint8_t cur_focus = 0;
+static gui_mode_t mode = MODE_SLIDE;
 
-void set_gui(gui_t *val) { g_gui = val; }
-
-static void draw_tab_bar(gui_t *gui) {
-    set_draw_mode(DRAW_ADD);
-    draw_line(0, 15, FB_WIDTH, 15);
-    bbox_t bb = {0};
-    for (int i = 0; i < gui->num_pages; i++) {
-        fnt_init_from_header(&f_fixed);
-        bb = fnt_draw_text(bb.right + 5, 1, gui->pages[i].tab_name, 8, H_LEFT | V_TOP);
-        if (i == gui->active_page) {
-            set_draw_mode(DRAW_INV);
-            fill_rectangle_bb(bb, 0xFF);
-            set_draw_mode(DRAW_ADD);
-        }
-    }
+void gui_init(Screen **screens, uint8_t num_screens) {
+    slides = screens;
+    slide_count = num_screens;
+    cur_slide = 0;
+    mode = MODE_SLIDE;
 }
 
-void widget_gui_update(bool full_redraw) {
-    if (g_gui == NULL) {
-        D("No GUI set!!\n");
+// Helper to find the next interactive widget on a screen
+static void step_focus(int dir) {
+    Screen *s = slides[cur_slide];
+    if (!s || s->count == 0)
         return;
+    for (int i = 0; i < s->count; i++) {
+        cur_focus = (cur_focus + dir + s->count) % s->count;
+        if (s->widgets[cur_focus]->selectable)
+            return;  // Found one
+        if (dir == 0)
+            dir = 1;
     }
-
-    page_t *current_page = &g_gui->pages[g_gui->active_page];
-    widget_t *active_widget = &current_page->widgets[current_page->focused_index];
-
-    // Fetch event-flags from hardware
-    unsigned events = get_event_flags();
-
-    // Give the focused widget the first chance to consume the event
-    bool consumed = false;
-    if (g_gui->state != NAV_TABS && active_widget->on_event != NULL) {
-        consumed = active_widget->on_event(active_widget, events, g_gui->state == EDIT_WIDGET);
-    }
-
-    // If the widget didn't eat the event, handle GUI navigation
-    if (!consumed) {
-        // --- Handle BACK button ---
-        if (events & EV_BACK_S) {
-            if (g_gui->state == EDIT_WIDGET)
-                // Cancel edit, back to widget list
-                g_gui->state = NAV_WIDGETS;
-            else if (g_gui->state == NAV_WIDGETS)
-                // Cancel widget list, back to tabs
-                g_gui->state = NAV_TABS;
-            else if (g_gui->state == NAV_TABS) {
-                // Back to page zero
-                g_gui->active_page = 0;
-                full_redraw = true;
-            }
-        } else if (events & EV_ENC_S) {
-            // --- Handle ENCODER CLICK ---
-            if (g_gui->state == NAV_TABS) {
-                g_gui->state = NAV_WIDGETS;  // Enter the tab
-            } else if (g_gui->state == NAV_WIDGETS && active_widget->can_focus) {
-                g_gui->state = EDIT_WIDGET;  // Enter edit mode for this widget
-            } else if (g_gui->state == EDIT_WIDGET) {
-                g_gui->state = NAV_WIDGETS;  // Confirm edit, drop back to widget list
-            }
-        } else if (events & (EV_ROT_CCW | EV_ROT_CW)) {
-            // --- Handle ENCODER ROTATION ---
-            if (g_gui->state == NAV_TABS) {
-                // Scroll Tabs
-                int new_page = g_gui->active_page + (events & EV_ROT_CCW ? -1 : 1);
-                if (new_page < 0)
-                    new_page = g_gui->num_pages - 1;
-                if (new_page >= g_gui->num_pages)
-                    new_page = 0;
-                g_gui->active_page = new_page;
-                full_redraw = true;
-            } else if (g_gui->state == NAV_WIDGETS) {
-                // Scroll Widgets (skip non-focusable ones)
-                int new_idx = current_page->focused_index;
-
-                int dir = events & EV_ROT_CCW ? -1 : 1;
-                int steps = 1;
-
-                while (steps > 0) {
-                    new_idx += dir;
-                    // Clamp to page boundaries
-                    if (new_idx < 0)
-                        new_idx = 0;
-                    if (new_idx >= current_page->num_widgets)
-                        new_idx = current_page->num_widgets - 1;
-
-                    if (current_page->widgets[new_idx].can_focus) {
-                        steps--;
-                    } else if (new_idx == 0 || new_idx == current_page->num_widgets - 1) {
-                        break;  // Hit the end, stop trying to find focusable widgets
-                    }
-                }
-                current_page->focused_index = new_idx;
-            }
-        }
-        // D("gui_state: %d,  active_page: %d,  focused_index: %d\n",
-        //   g_gui->state,
-        //   g_gui->active_page,
-        //   current_page->focused_index);
-    }
-
-    // Render the screen (same as before)
-    if (full_redraw) {
-        fill(0);
-        draw_tab_bar(g_gui);
-    }
-    for (unsigned i = 0; i < current_page->num_widgets; i++) {
-        widget_t *w = &current_page->widgets[i];
-        w->draw(w, i == current_page->focused_index, g_gui->state == EDIT_WIDGET, full_redraw);
-    }
+    printf("step_focus(%d): no selectable widget found on slide %d\n", dir, cur_slide);
 }
 
-// -----------------------
-//  Widgets
-// -----------------------
-// --- Static label Widget ---
-void draw_simple_static_label(widget_t *self, bool is_focused, bool is_editing, bool full_redraw) {
-    // Only draw once when the screen changes
-    if (!full_redraw)
+void gui_draw(bool force_draw) {
+    if (slide_count == 0)
         return;
 
-    // Cast the generic data pointer to our specific label state
-    char *text = (char *)self->data;
+    unsigned ev = get_event_flags();
 
-    fnt_init_from_header(&f_fixed);
-    // set_draw_region(self->bounds.left, self->bounds.top, self->bounds.right,
-    // self->bounds.bottom);
+    if (ev == 0 && force_draw == false)
+        return;
 
-    // Draw the text using the parameters
-    int center_y = self->bounds.top + ((self->bounds.bottom - self->bounds.top) / 2);
-    int center_x = self->bounds.left + ((self->bounds.right - self->bounds.left) / 2);
+    Screen *s = slides[cur_slide];
+    Widget *w = (s->count > 0) ? s->widgets[cur_focus] : NULL;
 
-    set_draw_mode(DRAW_ADD);
-    fnt_draw_text(center_x, center_y, text, 64, H_MIDDLE | V_MIDDLE);
+    // Handle BACK button globally
+    if (ev & EV_BACK_S) {
+        if (mode == MODE_EDIT) {
+            mode = MODE_FOCUS;
+            printf("MODE_FOCUS\n");
+        } else if (mode == MODE_FOCUS) {
+            mode = MODE_SLIDE;
+            printf("MODE_SLIDE\n");
+        }
+    }
+
+    switch (mode) {
+    case MODE_SLIDE:
+        // Rotate changes slides.
+        if (ev & EV_ROT_CW)
+            cur_slide = (cur_slide + 1) % slide_count;
+        if (ev & EV_ROT_CCW)
+            cur_slide = (cur_slide - 1 + slide_count) % slide_count;
+        // Push enters focus mode (if slide has selectable widgets).
+        if (ev & EV_ENC_S) {
+            cur_focus = 0;
+            step_focus(0);  // Find first selectable
+            if (s->widgets[cur_focus]->selectable) {
+                mode = MODE_FOCUS;
+                printf("MODE_FOCUS\n");
+            }
+        }
+        break;
+
+    case MODE_FOCUS:
+        // Rotate moves between widgets.
+        if (ev & EV_ROT_CW)
+            step_focus(1);
+        if (ev & EV_ROT_CCW)
+            step_focus(-1);
+        // Push enters edit mode (if widget has an event handler).
+        if ((ev & EV_ENC_S) && w && w->event) {
+            mode = MODE_EDIT;
+            printf("MODE_EDIT\n");
+        }
+        break;
+
+    case MODE_EDIT:
+        // Push confirms edit and returns to focus.
+        if (ev & EV_ENC_S) {
+            mode = MODE_FOCUS;
+            printf("MODE_FOCUS\n");
+        }
+        // Otherwise, route events to the widget.
+        else if (w && w->event)
+            w->event(w, ev);
+        break;
+    }
+
+    // Draw all widgets on the screen
+    fill_rectangle(0, 0, 255, 63, 0);
+    s = slides[cur_slide];
+    for (uint8_t i = 0; i < s->count; i++) {
+        w = s->widgets[i];
+        if (!w->draw)
+            continue;
+
+        w_state_t state = W_NORMAL;
+        if (mode != MODE_SLIDE && i == cur_focus) {
+            state = (mode == MODE_EDIT) ? W_EDITING : W_FOCUSED;
+        }
+        w->draw(w, state);
+    }
+
+    // Optional: Draw a tiny slide indicator at the left (e.g. dots)
+    int dot_w = slide_count * 8;
+    int start_y = 32 - (dot_w / 2);
+    for (int i = 0; i < slide_count; i++) {
+        if (i == cur_slide)
+            fill_ellipse(4, start_y + (i * 8), 2, 2, 0xF, 0xFF);
+        else
+            draw_ellipse(4, start_y + (i * 8), 2, 2, 0xF, 0x80);
+    }
 }
 
-// bool button_on_event(widget_t *self, unsigned events, int ticks, bool is_editing) {
-//     if (events & EV_ENC_S) {
-//         // Trigger the button's action!
-//         // ... (e.g., call a callback stored in self->data) ...
+// TODO: smart (formatted) labels using escape characters
+void draw_static_label(Widget *w, w_state_t state) {
+    LblData *d = (LblData *)w->data;
+    // state is ignored because it's never focused
+    fnt_draw_text(w->x, w->y, d->text, 32, d->align);
+}
 
-//         return true;  // We consumed the click! The GUI shouldn't do anything else.
-//     }
-//     return false;  // We don't care about rotation or other events
-// }
+void draw_dyn_label(Widget *w, w_state_t state) {
+    DynLblData *d = (DynLblData *)w->data;
+    char buffer[32] = {0};
+    d->format_value(buffer);  // e.g. formats "24.5 °C" into buffer
+    fnt_draw_text(w->x, w->y, buffer, sizeof(buffer), d->align);
+}
 
-// bool spinbox_on_event(widget_t *self, unsigned events, int ticks, bool is_editing) {
-//     if (is_editing && ticks != 0) {
-//         int *value = (int *)self->data;
-//         *value += ticks;
+void draw_setting(Widget *w, w_state_t state) {
+    SettingData *d = (SettingData *)w->data;
 
-//         // Add min/max clamping here...
+    uint8_t color = (state == W_EDITING) ? 0xFF : (state == W_FOCUSED) ? 0x88 : 0x44;
 
-//         return true;  // We consumed the rotation to change the value
-//     }
+    // Draw a nice rounded bounding box
+    draw_rectangle_r(w->x, w->y, w->x + 100, w->y + 16, 3, color);
 
-//     // Notice we do NOT consume EV_ENC_S here!
-//     // We return false, which tells the GUI context "I don't know what to do
-//     // with this click, you handle it." (The GUI will use it to enter/exit edit mode).
-//     return false;
-// }
+    // Draw the text inside
+    fnt_draw_printf(w->x + 4, w->y + 2, H_LEFT | V_TOP, "%s: %d", d->label, *d->value);
+}
+
+void event_setting(Widget *w, uint32_t ev) {
+    SettingData *d = (SettingData *)w->data;
+    if (ev & EV_ROT_CW)
+        *d->value += d->step;
+    if (ev & EV_ROT_CCW)
+        *d->value -= d->step;
+
+    // Clamp values
+    if (*d->value > d->max)
+        *d->value = d->max;
+    if (*d->value < d->min)
+        *d->value = d->min;
+}

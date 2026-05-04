@@ -1,5 +1,6 @@
 #pragma once
 #include "font.h"
+#include "graphics.h"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -32,53 +33,87 @@
 #define EV_ROT_CW (1 << 17)
 
 // ---------------------------------------------------
-//  Navigation Objects
+//  GUI data-types
 // ---------------------------------------------------
-// Base Widget
-typedef struct widget_s widget_t;
-struct widget_s {
-    uint8_t id;
-    bbox_t bounds;   // The bounding box (we use this for drawing focus borders!)
-    bool can_focus;  // Some static widgets don't need focus
-    void (*draw)(widget_t *self, bool is_focused, bool is_editing, bool full_redraw);
-    // Returns true if the widget consumed the event, false if the GUI should handle it
-    bool (*on_event)(widget_t *self, unsigned events, bool is_editing);
-    void *data;  // Pointer to the actual string, integer, etc.
-};
-
-// A Page (content of a tab)
-typedef struct {
-    const char *tab_name;  // The text to display in the top Tab Bar
-    widget_t *widgets;     // Array of widgets on this page
-    uint8_t num_widgets;
-    uint8_t focused_index;  // Remember what the user was doing on this tab!
-} page_t;
-
-// 3. The Main GUI Context
+// The visual state of a widget
 typedef enum {
-    NAV_TABS,     // Turning encoder switches tabs
-    NAV_WIDGETS,  // Turning encoder switches focus between widgets
-    EDIT_WIDGET   // Turning encoder changes a widget's value (e.g., volume slider)
-} gui_state_t;
+    W_NORMAL = 0,  // Unselected
+    W_FOCUSED,     // Selected, ready to be edited
+    W_EDITING      // Actively being manipulated
+} w_state_t;
+
+typedef struct Widget {
+    void (*draw)(struct Widget *w, w_state_t state);
+    void (*event)(struct Widget *w, uint32_t ev);  // NULL if not interactive
+    int x, y;
+    bool selectable;  // Set to false for pure displays (labels)
+    void *data;       // Pointer to widget-specific data
+} Widget;
 
 typedef struct {
-    page_t *pages;
-    uint8_t num_pages;
-    uint8_t active_page;  // Which tab is currently visible
-    gui_state_t state;
-} gui_t;
+    Widget **widgets;
+    uint8_t count;
+} Screen;
 
-// Point to the GUI to operate on
-void set_gui(gui_t *val);
+// -------------------------
+//  Widgets
+// -------------------------
+typedef struct {
+    const char *text;
+    fnt_align_t align;
+} LblData;
+void draw_static_label(Widget *w, w_state_t state);
 
-// Call this in the main loop to draw a new frame
-void widget_gui_update(bool full_redraw);
+typedef struct {
+    void (*format_value)(char *buffer);  // Callback to get the string
+    fnt_align_t align;
+} DynLblData;
+void draw_dyn_label(Widget *w, w_state_t state);
+
+typedef struct {
+    const char *label;
+    int *value;
+    int min, max, step;
+} SettingData;
+void draw_setting(Widget *w, w_state_t state);
+void event_setting(Widget *w, uint32_t ev);
+
+// In widget_label.h
+#define WIDGET_LABEL(_x, _y, _text, _align)                                                        \
+    {                                                                                              \
+        .draw = draw_static_label, .event = NULL, .x = (_x), .y = (_y), .selectable = false,       \
+        .data = &(LblData) {                                                                       \
+            .text = (_text), .align = (_align)                                                     \
+        }                                                                                          \
+    }
+
+#define WIDGET_DYNLBL(_x, _y, _cb_format_value, _align)                                            \
+    {                                                                                              \
+        .draw = draw_dyn_label, .event = NULL, .x = (_x), .y = (_y), .selectable = false,          \
+        .data = &(DynLblData) {                                                                    \
+            .format_value = (_cb_format_value), .align = (_align)                                  \
+        }                                                                                          \
+    }
+
+#define WIDGET_SETTING(_x, _y, _label, _value_ptr, _min, _max, _step)                              \
+    {                                                                                              \
+        .draw = draw_setting, .event = event_setting, .x = (_x), .y = (_y), .selectable = true,    \
+        .data = &(SettingData) {                                                                   \
+            .label = (_label), .value = (_value_ptr), .min = (_min), .max = (_max),                \
+            .step = (_step)                                                                        \
+        }                                                                                          \
+    }
+
+// ---------------------------------------------------
+//  GUI functions
+// ---------------------------------------------------
+// Initialize the GUI with an array of screens (slides)
+void gui_init(Screen **screens, uint8_t num_screens);
+
+// Render the current state to the framebuffer
+void gui_draw(bool force_draw);
 
 // External interface. This needs to be implemented somewhere else...
 // returns the instantaneous state of the encoder and back button (in the 2 LSBs)
 // the other bits are used to indicate events. See the EV_ flags above.
 unsigned get_event_flags(void);
-
-// Widgets
-
-void draw_simple_static_label(widget_t *self, bool is_focused, bool is_editing, bool full_redraw);

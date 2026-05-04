@@ -7,7 +7,7 @@
 
 extern const font_header_t f_fixed;
 
-unsigned event_flags = 0;
+static unsigned event_flags = 0, frame = 0;
 
 void on_event_widget_gui(SDL_Event *e) {
     if (e->type != SDL_KEYDOWN)
@@ -18,9 +18,9 @@ void on_event_widget_gui(SDL_Event *e) {
     } else if (e->key.keysym.sym == SDLK_LEFT) {
         event_flags |= EV_ROT_CCW;
     } else if (e->key.keysym.sym == SDLK_UP) {
-        event_flags |= EV_ENC_S;
-    } else if (e->key.keysym.sym == SDLK_DOWN) {
         event_flags |= EV_BACK_S;
+    } else if (e->key.keysym.sym == SDLK_DOWN) {
+        event_flags |= EV_ENC_S;
     }
 }
 
@@ -30,41 +30,35 @@ unsigned get_event_flags(void) {
     return tmp;
 }
 
-// --- Page 1: Settings ---
-static widget_t settings_widgets[] = {
-    // id, bounds, can_focus, draw_cb, event_cb, data pointer
-    {1, {10, 32, 20, 32}, false, draw_simple_static_label, NULL, "Hello"},
-    {2, {64, 128, 20, 32}, false, draw_simple_static_label, NULL, "World"},
+// --- 1. Slide 1: Sensor Dashboard (Pure Display) ---
+// Example sensor callback
+void get_temp(char *buf) { sprintf(buf, "Temp: %d C", frame % 150); }
+
+static Widget *slide1_widgets[] = {
+    &(Widget)WIDGET_LABEL(128, 2, "Engine Bay Status", H_MIDDLE | V_TOP),
+    &(Widget)WIDGET_DYNLBL(10, 20, get_temp, H_LEFT | V_TOP),
 };
 
-// --- Page 2: Network ---
-static widget_t network_widgets[] = {
-    // id, bounds, can_focus, draw_cb, event_cb, data pointer
-    {4, {10, 246, 20, 32}, false, draw_simple_static_label, NULL, "IP: 192.168.1.50"},
-    {5, {10, 100, 36, 48}, false, draw_simple_static_label, NULL, "Reconnect"},
-};
+Screen slide1 = {slide1_widgets, 2};
 
-// --- The Pages Array ---
-static page_t my_pages[] = {
-    // tab_name, widgets*, num_widgets, focused_index
-    {"Settings", settings_widgets, 2, 0},
-    {"Network", network_widgets, 2, 0},
+// --- 2. Slide 2: Interactive Settings ---
+int fan_speed = 50, heater = 50;
+Widget *slide2_widgets[] = {
+    &(Widget)WIDGET_LABEL(128, 2, "Fan Controls", H_MIDDLE | V_TOP),
+    &(Widget)WIDGET_SETTING(10, 20, "Speed", &fan_speed, 0, 100, 10),
+    &(Widget)WIDGET_SETTING(128, 20, "Heater", &heater, -50, 50, 5),
 };
+Screen slide2 = {slide2_widgets, 3};
 
-// --- The Global GUI ---
-static gui_t gui = {
-    .pages = my_pages,
-    .num_pages = 2,
-    .active_page = 0,
-    .state = NAV_TABS,
-};
+// --- 3. Main Array & Execution ---
+Screen *my_slides[] = {&slide1, &slide2};
 
 void test_widget_gui(void) {
-    static unsigned frame = 0;
     if (frame == 0) {
-        set_gui(&gui);
+        draw_rectangle(0, 0, 256, 64, 0x88);
         fnt_init_from_header(&f_fixed);
+        gui_init(my_slides, 2);
     }
-    widget_gui_update(frame == 0);
+    gui_draw(frame == 0 || true);
     frame++;
 }
