@@ -54,13 +54,13 @@ void test_graphics(void) {
     fnt_init_from_header(&f_vollkorn);
     bbox_t bb = fnt_draw_text(txt_x, txt_y, test_str, sizeof(test_str), align);
     // Draw the bounding box
-    draw_rectangle(bb.left - 1, bb.top - 1, bb.right + 1, bb.bottom + 1, 0x44);
+    draw_rectangle_bb(bb_add_spacing(bb, 1), 0x44);
 
     // Draw in a small pixel font
     fnt_init_from_header(&f_fixed);
     bb = fnt_draw_printf(txt_x, txt_y2, align, test_str, frame);
     // Draw the bounding box
-    draw_rectangle(bb.left - 1, bb.top - 1, bb.right + 1, bb.bottom + 1, 0x44);
+    draw_rectangle_bb(bb_add_spacing(bb, 1), 0x44);
 
     // Draw anchor points of the 2 texts
     set_draw_mode(DRAW_INV);

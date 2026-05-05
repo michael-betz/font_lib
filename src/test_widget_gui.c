@@ -36,7 +36,7 @@ void get_temp(char *buf) { sprintf(buf, "Temp: %d C", frame % 150); }
 
 const Widget *const slide1_widgets[] = {
     &(Widget)WIDGET_LABEL(128, 2, "Engine Bay Status", H_MIDDLE | V_TOP),
-    &(Widget)WIDGET_DYNLBL(10, 20, get_temp, H_LEFT | V_TOP),
+    &(Widget)WIDGET_DYNLBL(32, 20, get_temp, H_LEFT | V_TOP),
 };
 
 const Screen slide1 = {slide1_widgets, 2};
@@ -45,7 +45,7 @@ const Screen slide1 = {slide1_widgets, 2};
 int fan_speed = 50, heater = 50;
 const Widget *const slide2_widgets[] = {
     &(Widget)WIDGET_LABEL(128, 2, "Fan Controls", H_MIDDLE | V_TOP),
-    &(Widget)WIDGET_SETTING(10, 20, "Speed", &fan_speed, 0, 100, 10),
+    &(Widget)WIDGET_SETTING(32, 20, "Speed", &fan_speed, 0, 100, 10),
     &(Widget)WIDGET_SETTING(128, 20, "Heater", &heater, -50, 50, 5),
 };
 const Screen slide2 = {slide2_widgets, 3};
@@ -59,6 +59,8 @@ void test_widget_gui(void) {
         fnt_init_from_header(&f_fixed);
         gui_init(my_slides, 2);
     }
+    set_draw_mode(DRAW_SET);
+    fill_rectangle(0, 0, 255, 63, 0);
     gui_draw(frame == 0 || true);
     frame++;
 }

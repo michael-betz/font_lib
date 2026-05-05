@@ -551,9 +551,9 @@ fnt_text(const int x_a, const int y_a, const char *c, unsigned n, fnt_align_t al
     // If the string contained actual printable characters, write the real bounds
     if (abs_min_x != INT_MAX) {
         result.left = abs_min_x;
-        result.right = abs_max_x;
+        result.right = abs_max_x - 1;
         result.top = abs_min_y;
-        result.bottom = abs_max_y;
+        result.bottom = abs_max_y - 1;
     }
 
     return result;

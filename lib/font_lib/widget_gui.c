@@ -118,14 +118,16 @@ void gui_draw(bool force_draw) {
         w->draw(w, state);
     }
 
-    // Optional: Draw a tiny slide indicator at the left (e.g. dots)
+    // Draw a tiny slide indicator at the left (e.g. dots)
     int dot_w = slide_count * 8;
     int start_y = 32 - (dot_w / 2);
+    draw_rectangle_r(
+        -6, start_y - 8, 8, start_y + slide_count * 8, 5, mode == MODE_SLIDE ? 0xFF : 0x30);
     for (int i = 0; i < slide_count; i++) {
         if (i == cur_slide)
-            fill_ellipse(4, start_y + (i * 8), 2, 2, 0xF, 0xFF);
+            fill_ellipse(3, start_y + (i * 8), 2, 2, 0xF, mode == MODE_SLIDE ? 0xFF : 0x30);
         else
-            draw_ellipse(4, start_y + (i * 8), 2, 2, 0xF, 0x80);
+            draw_ellipse(3, start_y + (i * 8), 1, 1, 0xF, mode == MODE_SLIDE ? 0x80 : 0x30);
     }
 }
 
@@ -148,11 +150,11 @@ void draw_setting(const Widget *w, w_state_t state) {
 
     uint8_t color = (state == W_EDITING) ? 0xFF : (state == W_FOCUSED) ? 0x88 : 0x44;
 
-    // Draw a nice rounded bounding box
-    draw_rectangle_r(w->x, w->y, w->x + 100, w->y + 16, 3, color);
-
     // Draw the text inside
-    fnt_draw_printf(w->x + 4, w->y + 2, H_LEFT | V_TOP, "%s: %d", d->label, *d->value);
+    bbox_t bb = fnt_draw_printf(w->x + 4, w->y + 2, H_LEFT | V_TOP, "%s: %d", d->label, *d->value);
+
+    // Draw a nice rounded bounding box
+    draw_rectangle_rbb(bb_add_spacing(bb, 3), 3, color);
 }
 
 void event_setting(const Widget *w, uint32_t ev) {
