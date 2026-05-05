@@ -34,24 +34,24 @@ unsigned get_event_flags(void) {
 // Example sensor callback
 void get_temp(char *buf) { sprintf(buf, "Temp: %d C", frame % 150); }
 
-static Widget *slide1_widgets[] = {
+const Widget *const slide1_widgets[] = {
     &(Widget)WIDGET_LABEL(128, 2, "Engine Bay Status", H_MIDDLE | V_TOP),
     &(Widget)WIDGET_DYNLBL(10, 20, get_temp, H_LEFT | V_TOP),
 };
 
-Screen slide1 = {slide1_widgets, 2};
+const Screen slide1 = {slide1_widgets, 2};
 
 // --- 2. Slide 2: Interactive Settings ---
 int fan_speed = 50, heater = 50;
-Widget *slide2_widgets[] = {
+const Widget *const slide2_widgets[] = {
     &(Widget)WIDGET_LABEL(128, 2, "Fan Controls", H_MIDDLE | V_TOP),
     &(Widget)WIDGET_SETTING(10, 20, "Speed", &fan_speed, 0, 100, 10),
     &(Widget)WIDGET_SETTING(128, 20, "Heater", &heater, -50, 50, 5),
 };
-Screen slide2 = {slide2_widgets, 3};
+const Screen slide2 = {slide2_widgets, 3};
 
 // --- 3. Main Array & Execution ---
-Screen *my_slides[] = {&slide1, &slide2};
+const Screen *my_slides[] = {&slide1, &slide2};
 
 void test_widget_gui(void) {
     if (frame == 0) {

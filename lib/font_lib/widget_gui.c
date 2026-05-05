@@ -3,17 +3,19 @@
 #include "frame_buffer.h"
 #include "graphics.h"
 #include <stddef.h>
+#include <stdio.h>
 
 // GUI State Machine
 typedef enum { MODE_SLIDE, MODE_FOCUS, MODE_EDIT } gui_mode_t;
 
-static Screen **slides;
+// pointer to a ROM array of ROM Screen pointers
+static const Screen *const *slides;
 static uint8_t slide_count = 0;
 static uint8_t cur_slide = 0;
 static uint8_t cur_focus = 0;
 static gui_mode_t mode = MODE_SLIDE;
 
-void gui_init(Screen **screens, uint8_t num_screens) {
+void gui_init(const Screen *const *screens, uint8_t num_screens) {
     slides = screens;
     slide_count = num_screens;
     cur_slide = 0;
@@ -22,7 +24,7 @@ void gui_init(Screen **screens, uint8_t num_screens) {
 
 // Helper to find the next interactive widget on a screen
 static void step_focus(int dir) {
-    Screen *s = slides[cur_slide];
+    const Screen *s = slides[cur_slide];
     if (!s || s->count == 0)
         return;
     for (int i = 0; i < s->count; i++) {
@@ -44,8 +46,8 @@ void gui_draw(bool force_draw) {
     if (ev == 0 && force_draw == false)
         return;
 
-    Screen *s = slides[cur_slide];
-    Widget *w = (s->count > 0) ? s->widgets[cur_focus] : NULL;
+    const Screen *s = slides[cur_slide];
+    const Widget *w = (s->count > 0) ? s->widgets[cur_focus] : NULL;
 
     // Handle BACK button globally
     if (ev & EV_BACK_S) {
@@ -128,21 +130,21 @@ void gui_draw(bool force_draw) {
 }
 
 // TODO: smart (formatted) labels using escape characters
-void draw_static_label(Widget *w, w_state_t state) {
-    LblData *d = (LblData *)w->data;
+void draw_static_label(const Widget *w, w_state_t state) {
+    const LblData *d = (const LblData *)w->data;
     // state is ignored because it's never focused
     fnt_draw_text(w->x, w->y, d->text, 32, d->align);
 }
 
-void draw_dyn_label(Widget *w, w_state_t state) {
-    DynLblData *d = (DynLblData *)w->data;
+void draw_dyn_label(const Widget *w, w_state_t state) {
+    const DynLblData *d = (const DynLblData *)w->data;
     char buffer[32] = {0};
     d->format_value(buffer);  // e.g. formats "24.5 °C" into buffer
     fnt_draw_text(w->x, w->y, buffer, sizeof(buffer), d->align);
 }
 
-void draw_setting(Widget *w, w_state_t state) {
-    SettingData *d = (SettingData *)w->data;
+void draw_setting(const Widget *w, w_state_t state) {
+    const SettingData *d = (const SettingData *)w->data;
 
     uint8_t color = (state == W_EDITING) ? 0xFF : (state == W_FOCUSED) ? 0x88 : 0x44;
 
@@ -153,8 +155,11 @@ void draw_setting(Widget *w, w_state_t state) {
     fnt_draw_printf(w->x + 4, w->y + 2, H_LEFT | V_TOP, "%s: %d", d->label, *d->value);
 }
 
-void event_setting(Widget *w, uint32_t ev) {
-    SettingData *d = (SettingData *)w->data;
+void event_setting(const Widget *w, uint32_t ev) {
+    const SettingData *d = (const SettingData *)w->data;
+
+    // We are modifying the RAM value that the ROM pointer points to.
+    // This is entirely valid standard C!
     if (ev & EV_ROT_CW)
         *d->value += d->step;
     if (ev & EV_ROT_CCW)

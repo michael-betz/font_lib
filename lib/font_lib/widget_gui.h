@@ -42,16 +42,19 @@ typedef enum {
     W_EDITING      // Actively being manipulated
 } w_state_t;
 
+// Forward declaration needed for the const function pointers
+struct Widget;
+
 typedef struct Widget {
-    void (*draw)(struct Widget *w, w_state_t state);
-    void (*event)(struct Widget *w, uint32_t ev);  // NULL if not interactive
+    void (*draw)(const struct Widget *w, w_state_t state);
+    void (*event)(const struct Widget *w, uint32_t ev);  // NULL if not interactive
     int x, y;
-    bool selectable;  // Set to false for pure displays (labels)
-    void *data;       // Pointer to widget-specific data
+    bool selectable;   // Set to false for pure displays (labels)
+    const void *data;  // Pointer to const ROM widget-specific data
 } Widget;
 
 typedef struct {
-    Widget **widgets;
+    const Widget *const *widgets;  // ROM array of pointers to ROM Widgets
     uint8_t count;
 } Screen;
 
@@ -62,27 +65,27 @@ typedef struct {
     const char *text;
     fnt_align_t align;
 } LblData;
-void draw_static_label(Widget *w, w_state_t state);
+void draw_static_label(const Widget *w, w_state_t state);
 
 typedef struct {
     void (*format_value)(char *buffer);  // Callback to get the string
     fnt_align_t align;
 } DynLblData;
-void draw_dyn_label(Widget *w, w_state_t state);
+void draw_dyn_label(const Widget *w, w_state_t state);
 
 typedef struct {
     const char *label;
-    int *value;
+    int *value;  // Points to RAM, but the SettingData struct itself is in ROM
     int min, max, step;
 } SettingData;
-void draw_setting(Widget *w, w_state_t state);
-void event_setting(Widget *w, uint32_t ev);
+void draw_setting(const Widget *w, w_state_t state);
+void event_setting(const Widget *w, uint32_t ev);
 
 // In widget_label.h
 #define WIDGET_LABEL(_x, _y, _text, _align)                                                        \
     {                                                                                              \
         .draw = draw_static_label, .event = NULL, .x = (_x), .y = (_y), .selectable = false,       \
-        .data = &(LblData) {                                                                       \
+        .data = &(const LblData) {                                                                 \
             .text = (_text), .align = (_align)                                                     \
         }                                                                                          \
     }
@@ -90,7 +93,7 @@ void event_setting(Widget *w, uint32_t ev);
 #define WIDGET_DYNLBL(_x, _y, _cb_format_value, _align)                                            \
     {                                                                                              \
         .draw = draw_dyn_label, .event = NULL, .x = (_x), .y = (_y), .selectable = false,          \
-        .data = &(DynLblData) {                                                                    \
+        .data = &(const DynLblData) {                                                              \
             .format_value = (_cb_format_value), .align = (_align)                                  \
         }                                                                                          \
     }
@@ -98,7 +101,7 @@ void event_setting(Widget *w, uint32_t ev);
 #define WIDGET_SETTING(_x, _y, _label, _value_ptr, _min, _max, _step)                              \
     {                                                                                              \
         .draw = draw_setting, .event = event_setting, .x = (_x), .y = (_y), .selectable = true,    \
-        .data = &(SettingData) {                                                                   \
+        .data = &(const SettingData) {                                                             \
             .label = (_label), .value = (_value_ptr), .min = (_min), .max = (_max),                \
             .step = (_step)                                                                        \
         }                                                                                          \
@@ -108,7 +111,7 @@ void event_setting(Widget *w, uint32_t ev);
 //  GUI functions
 // ---------------------------------------------------
 // Initialize the GUI with an array of screens (slides)
-void gui_init(Screen **screens, uint8_t num_screens);
+void gui_init(const Screen *const *screens, uint8_t num_screens);
 
 // Render the current state to the framebuffer
 void gui_draw(bool force_draw);
