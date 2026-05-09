@@ -409,7 +409,6 @@ def export_as_header(
     with open(out_name, "w") as f:
         print(
             f"""\
-#pragma once
 #include <stdint.h>
 #include <stdio.h>
 #include <font.h>
@@ -588,7 +587,7 @@ def main():
     parser.add_argument(
         "--fnt",
         action="store_true",
-        help="Write a binary .fnt file instead instead of a .h",
+        help="Write a binary .fnt file instead instead of a .c",
     )
     parser.add_argument(
         "--bpp",
@@ -640,7 +639,7 @@ def main():
     # Generate the output file name
     out_name = Path("fnt/")
     out_name.mkdir(exist_ok=True)
-    f_ending = ".fnt" if args.fnt else ".h"
+    f_ending = ".fnt" if args.fnt else ".c"
     if args.numeric_name:
         out_name = get_next_filename(out_name, f_ending)
     else:
@@ -650,7 +649,7 @@ def main():
         print(f"\nGenerating binary .fnt file ...")
         export_as_fnt(glyph_props, glyph_data, map_table, header, str(out_name))
     else:
-        print(f"\nGenerating C-header .h file ...")
+        print(f"\nGenerating .c source file ...")
         export_as_header(glyph_props, glyph_data, map_table, header, str(out_name))
 
     export_as_png(glyph_props, glyph_data, header, str(out_name.with_suffix(".png")))

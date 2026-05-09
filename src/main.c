@@ -1,4 +1,5 @@
 #include "font.h"
+#include "fonts.h"
 #include "frame_buffer.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_blendmode.h>
@@ -53,7 +54,7 @@ static void init_sdl() {
 }
 
 int main(int argc, char *args[]) {
-    static int test_mode = 1;
+    static int test_mode = 0;
     init_sdl();
 
     bool is_running = true;

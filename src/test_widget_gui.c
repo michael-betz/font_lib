@@ -1,4 +1,5 @@
 #include "font.h"
+#include "fonts.h"
 #include "frame_buffer.h"
 #include "graphics.h"
 #include "widget_gui.h"

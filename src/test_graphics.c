@@ -1,10 +1,12 @@
 #include "font.h"
+#include "fonts.h"
 #include "frame_buffer.h"
 #include "graphics.h"
 #include <SDL2/SDL.h>
-#include <fixed.h>
 #include <stdio.h>
-#include <vollkorn.h>
+
+extern const font_header_t f_vollkorn;
+extern const font_header_t f_fixed;
 
 static unsigned frame = 0, align = H_MIDDLE, radius = 30;
 

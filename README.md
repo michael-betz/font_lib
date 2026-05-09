@@ -33,10 +33,14 @@ pio run
 
 ![Screenshot of the included demo](util/screenshot.png)
 
+Use the function keys to switch between different demos.
+  * `F1` the font and drawing functions.
+  * `F2` demos the UI widget system
+
 You can type and the text should change.
 
 The keys `left`, `up`, `right` will change the horizontal alignment, `1234` changes the vertical alignment and anchor position. These are following the [Pillow Image Font conventions](https://pillow.readthedocs.io/en/stable/handbook/text-anchors.html#text-anchors).
 
 Try to change `FB_BPP`, `FB_WIDTH` and `FB_HEIGHT` in `platform.ini`. The demo program should adapt.
 
-Try to convert a font-file with `util/font_converter.py` and replace the included demo font `src/vollkorn.h`.
+Try to convert a font-file with `util/font_converter.py` and replace the included demo font `src/vollkorn.c`.
