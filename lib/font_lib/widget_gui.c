@@ -86,8 +86,12 @@ void gui_draw(bool force_draw) {
             step_focus(-1);
         // Push enters edit mode (if widget has an event handler).
         if ((ev & EV_ENC_S) && w && w->event) {
-            mode = MODE_EDIT;
-            printf("MODE_EDIT\n");
+            if (w->editable) {
+                mode = MODE_EDIT;
+                printf("MODE_EDIT\n");
+            } else {
+                w->event(w, ev);
+            }
         }
         break;
 
@@ -145,6 +149,22 @@ void draw_dyn_label(const Widget *w, w_state_t state) {
     fnt_draw_text(w->x, w->y, buffer, sizeof(buffer), d->align);
 }
 
+void draw_check_box(const Widget *w, w_state_t state) {
+    const CheckBoxData *d = (const CheckBoxData *)w->data;
+    draw_ellipse(w->x, w->y, 5, 5, 0xF, 0xFF);
+    if (*d->is_enabled)
+        fill_ellipse(w->x, w->y, 3, 3, 0xF, 0xFF);
+    bbox_t bb = fnt_draw_text(w->x + 10, w->y, d->text, 32, H_LEFT | V_MIDDLE);
+    bb.left -= 14;
+    if (state == W_FOCUSED)
+        draw_rectangle_rbb(bb_add_spacing(bb, 3), 3, 0x88);
+}
+void event_check_box(const Widget *w, uint32_t ev) {
+    const CheckBoxData *d = (const CheckBoxData *)w->data;
+    if (ev & EV_ENC_S)
+        *d->is_enabled = !(*d->is_enabled);
+}
+
 void draw_setting(const Widget *w, w_state_t state) {
     const SettingData *d = (const SettingData *)w->data;
 
@@ -159,9 +179,7 @@ void draw_setting(const Widget *w, w_state_t state) {
 
 void event_setting(const Widget *w, uint32_t ev) {
     const SettingData *d = (const SettingData *)w->data;
-
-    // We are modifying the RAM value that the ROM pointer points to.
-    // This is entirely valid standard C!
+    // Increment / decrement value by step
     if (ev & EV_ROT_CW)
         *d->value += d->step;
     if (ev & EV_ROT_CCW)

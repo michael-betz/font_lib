@@ -35,12 +35,13 @@ unsigned get_event_flags(void) {
 // Example sensor callback
 void get_temp(char *buf) { sprintf(buf, "Temp: %d C", frame % 150); }
 
+bool state = false;
 const Widget *const slide1_widgets[] = {
     &(Widget)WIDGET_LABEL(128, 2, "Engine Bay Status", H_MIDDLE | V_TOP),
     &(Widget)WIDGET_DYNLBL(32, 20, get_temp, H_LEFT | V_TOP),
-};
+    &(Widget)WIDGET_CHECK_BOX(16, 48, "Power enabled", &state)};
 
-const Screen slide1 = {slide1_widgets, 2};
+const Screen slide1 = {slide1_widgets, 3};
 
 // --- 2. Slide 2: Interactive Settings ---
 int fan_speed = 50, heater = 50;

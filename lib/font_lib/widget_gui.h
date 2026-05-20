@@ -50,6 +50,7 @@ typedef struct Widget {
     void (*event)(const struct Widget *w, uint32_t ev);  // NULL if not interactive
     int x, y;
     bool selectable;   // Set to false for pure displays (labels)
+    bool editable;     // Set to false for buttons / check-boxes with direct action
     const void *data;  // Pointer to const ROM widget-specific data
 } Widget;
 
@@ -61,27 +62,14 @@ typedef struct {
 // -------------------------
 //  Widgets
 // -------------------------
+// Static label which never changes
 typedef struct {
     const char *text;
     fnt_align_t align;
 } LblData;
+
 void draw_static_label(const Widget *w, w_state_t state);
 
-typedef struct {
-    void (*format_value)(char *buffer);  // Callback to get the string
-    fnt_align_t align;
-} DynLblData;
-void draw_dyn_label(const Widget *w, w_state_t state);
-
-typedef struct {
-    const char *label;
-    int *value;  // Points to RAM, but the SettingData struct itself is in ROM
-    int min, max, step;
-} SettingData;
-void draw_setting(const Widget *w, w_state_t state);
-void event_setting(const Widget *w, uint32_t ev);
-
-// In widget_label.h
 #define WIDGET_LABEL(_x, _y, _text, _align)                                                        \
     {                                                                                              \
         .draw = draw_static_label, .event = NULL, .x = (_x), .y = (_y), .selectable = false,       \
@@ -89,6 +77,14 @@ void event_setting(const Widget *w, uint32_t ev);
             .text = (_text), .align = (_align)                                                     \
         }                                                                                          \
     }
+
+// Dynamic label which can be updated with a callback
+typedef struct {
+    void (*format_value)(char *buffer);  // Callback to get the string
+    fnt_align_t align;
+} DynLblData;
+
+void draw_dyn_label(const Widget *w, w_state_t state);
 
 #define WIDGET_DYNLBL(_x, _y, _cb_format_value, _align)                                            \
     {                                                                                              \
@@ -98,10 +94,38 @@ void event_setting(const Widget *w, uint32_t ev);
         }                                                                                          \
     }
 
+// A rectangular check-box with a label which can be enabled / disabled
+typedef struct {
+    const char *text;
+    bool *is_enabled;
+} CheckBoxData;
+
+void draw_check_box(const Widget *w, w_state_t state);
+void event_check_box(const Widget *w, uint32_t ev);
+
+#define WIDGET_CHECK_BOX(_x, _y, _text, _is_enabled)                                               \
+    {                                                                                              \
+        .draw = draw_check_box, .event = event_check_box, .x = (_x), .y = (_y),                    \
+        .selectable = true, .data = &(const CheckBoxData) {                                        \
+            .text = (_text), .is_enabled = (_is_enabled)                                           \
+        }                                                                                          \
+    }
+
+// A value setting which can increment / decrement a value with a step and min / max limits
+typedef struct {
+    const char *label;
+    int *value;  // Points to RAM, but the SettingData struct itself is in ROM
+    int min, max, step;
+} SettingData;
+
+void draw_setting(const Widget *w, w_state_t state);
+
+void event_setting(const Widget *w, uint32_t ev);
+
 #define WIDGET_SETTING(_x, _y, _label, _value_ptr, _min, _max, _step)                              \
     {                                                                                              \
         .draw = draw_setting, .event = event_setting, .x = (_x), .y = (_y), .selectable = true,    \
-        .data = &(const SettingData) {                                                             \
+        .editable = true, .data = &(const SettingData) {                                           \
             .label = (_label), .value = (_value_ptr), .min = (_min), .max = (_max),                \
             .step = (_step)                                                                        \
         }                                                                                          \
