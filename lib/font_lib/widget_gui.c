@@ -153,22 +153,27 @@ void draw_dyn_label(const Widget *w, w_state_t state, unsigned event_flags) {
 
 void draw_button(const Widget *w, w_state_t state, unsigned event_flags) {
     const LblData *d = (const LblData *)w->data;
-    int y = w->y - 1;
+    int x = w->x, y = w->y - 1;
     // Move button down when encoder is pressed down
     if (state == W_FOCUSED && event_flags & 1) {
-        y += 1;
+        y += 2;
+        x += 2;
     }
-    bbox_t bb = fnt_draw_text(w->x + 10, y, d->text, 32, H_LEFT | V_MIDDLE);
+    bbox_t bb = fnt_draw_text(x, y, d->text, 32, H_LEFT | V_MIDDLE);
 
     if (state == W_FOCUSED) {
         set_draw_mode(DRAW_INV);
-        fill_rectangle_rbb(bb_add_spacing(bb, 4), 4, 0xFF);
+        fill_rectangle_bb(bb_add_spacing(bb, 2), 0xFF);
     } else {
         set_draw_mode(DRAW_ADD);
-        fill_rectangle_rbb(bb_add_spacing(bb, 4), 4, 0x44);
+        fill_rectangle_bb(bb_add_spacing(bb, 2), 0x44);
     }
-
     set_draw_mode(DRAW_SET);
+    if (state == W_FOCUSED && event_flags & 1)
+        return;
+
+    draw_hline(bb.left, bb.right + 4, bb.bottom + 4, 0x44);
+    draw_vline(bb.right + 4, bb.top, bb.bottom + 4, 0x44);
 }
 
 void draw_check_box(const Widget *w, w_state_t state, unsigned event_flags) {
