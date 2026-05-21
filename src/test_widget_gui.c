@@ -43,14 +43,19 @@ unsigned get_event_flags(void) {
 
 // --- 1. Slide 1: Sensor Dashboard (Pure Display) ---
 // Example sensor callback
-void get_temp(char *buf) { sprintf(buf, "Temp: %d C", frame % 150); }
+static void get_temp_cb(char *buf) { sprintf(buf, "Temp: %d C", frame % 150); }
+
+static void button_cb(const Widget *w, uint32_t ev) {
+    if (ev & EV_ENC_S)
+        printf("BUTTON event!!!\n");
+}
 
 bool state = false;
 const Widget *const slide1_widgets[] = {
     &(Widget)WIDGET_LABEL(128, 2, "Engine Bay Status", H_MIDDLE | V_TOP),
-    &(Widget)WIDGET_DYNLBL(32, 20, get_temp, H_LEFT | V_TOP),
+    &(Widget)WIDGET_DYNLBL(32, 20, get_temp_cb, H_LEFT | V_TOP),
     &(Widget)WIDGET_CHECK_BOX(16, 48, "Power enabled", &state),
-    &(Widget)WIDGET_BUTTON(130, 48, "Push me!"),
+    &(Widget)WIDGET_BUTTON(130, 48, "Push me!", button_cb),
 };
 
 const Screen slide1 = {slide1_widgets, 4};

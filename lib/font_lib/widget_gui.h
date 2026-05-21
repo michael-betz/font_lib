@@ -95,17 +95,11 @@ void draw_dyn_label(const Widget *w, w_state_t state, unsigned event_flags);
     }
 
 // A button
-typedef struct {
-    const char *text;
-} ButtonData;
-
 void draw_button(const Widget *w, w_state_t state, unsigned event_flags);
-void event_button(const Widget *w, uint32_t ev);
-
-#define WIDGET_BUTTON(_x, _y, _text)                                                               \
+#define WIDGET_BUTTON(_x, _y, _text, _event_cb)                                                    \
     {                                                                                              \
-        .draw = draw_button, .event = event_button, .x = (_x), .y = (_y), .selectable = true,      \
-        .data = &(const ButtonData) {                                                              \
+        .draw = draw_button, .event = _event_cb, .x = (_x), .y = (_y), .selectable = true,         \
+        .data = &(const LblData) {                                                                 \
             .text = (_text)                                                                        \
         }                                                                                          \
     }

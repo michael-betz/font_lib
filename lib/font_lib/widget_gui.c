@@ -50,7 +50,7 @@ void gui_draw(bool force_draw) {
     const Widget *w = (s->count > 0) ? s->widgets[cur_focus] : NULL;
 
     // Handle BACK button globally
-    if (ev & EV_BACK_S) {
+    if (ev & (EV_BACK_S | EV_ENC_L)) {
         if (mode == MODE_EDIT) {
             mode = MODE_FOCUS;
             printf("MODE_FOCUS\n");
@@ -122,9 +122,9 @@ void gui_draw(bool force_draw) {
         w->draw(w, state, ev);
     }
 
-    if (mode != MODE_SLIDE)
-        return;
     // Draw a tiny slide indicator at the left (e.g. dots)
+    // if (mode != MODE_SLIDE)
+    //     return;
     int dot_w = slide_count * 8;
     int start_y = 32 - (dot_w / 2);
     draw_rectangle_r(
@@ -152,12 +152,11 @@ void draw_dyn_label(const Widget *w, w_state_t state, unsigned event_flags) {
 }
 
 void draw_button(const Widget *w, w_state_t state, unsigned event_flags) {
-    const ButtonData *d = (const ButtonData *)w->data;
+    const LblData *d = (const LblData *)w->data;
     int y = w->y - 1;
     // Move button down when encoder is pressed down
     if (state == W_FOCUSED && event_flags & 1) {
         y += 1;
-    } else {
     }
     bbox_t bb = fnt_draw_text(w->x + 10, y, d->text, 32, H_LEFT | V_MIDDLE);
 
@@ -170,10 +169,6 @@ void draw_button(const Widget *w, w_state_t state, unsigned event_flags) {
     }
 
     set_draw_mode(DRAW_SET);
-}
-void event_button(const Widget *w, uint32_t ev) {
-    if (ev & EV_ENC_S)
-        printf("BUTTON event!!!\n");
 }
 
 void draw_check_box(const Widget *w, w_state_t state, unsigned event_flags) {
