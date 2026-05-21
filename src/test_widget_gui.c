@@ -11,8 +11,18 @@ extern const font_header_t f_fixed;
 static unsigned event_flags = 0, frame = 0;
 
 void on_event_widget_gui(SDL_Event *e) {
+    if (e->type == SDL_KEYUP) {
+        if (e->key.keysym.sym == SDLK_DOWN) {
+            if (event_flags & EV_ENC) {
+                event_flags |= EV_ENC_S;
+            }
+            event_flags &= ~EV_ENC;
+        }
+    }
+
     if (e->type != SDL_KEYDOWN)
         return;
+
     // left / right = encoder rotation
     if (e->key.keysym.sym == SDLK_RIGHT) {
         event_flags |= EV_ROT_CW;
@@ -21,13 +31,13 @@ void on_event_widget_gui(SDL_Event *e) {
     } else if (e->key.keysym.sym == SDLK_UP) {
         event_flags |= EV_BACK_S;
     } else if (e->key.keysym.sym == SDLK_DOWN) {
-        event_flags |= EV_ENC_S;
+        event_flags |= EV_ENC;
     }
 }
 
 unsigned get_event_flags(void) {
     unsigned tmp = event_flags;
-    event_flags = 0;
+    event_flags &= EV_ENC;
     return tmp;
 }
 
@@ -39,9 +49,11 @@ bool state = false;
 const Widget *const slide1_widgets[] = {
     &(Widget)WIDGET_LABEL(128, 2, "Engine Bay Status", H_MIDDLE | V_TOP),
     &(Widget)WIDGET_DYNLBL(32, 20, get_temp, H_LEFT | V_TOP),
-    &(Widget)WIDGET_CHECK_BOX(16, 48, "Power enabled", &state)};
+    &(Widget)WIDGET_CHECK_BOX(16, 48, "Power enabled", &state),
+    &(Widget)WIDGET_BUTTON(130, 48, "Push me!"),
+};
 
-const Screen slide1 = {slide1_widgets, 3};
+const Screen slide1 = {slide1_widgets, 4};
 
 // --- 2. Slide 2: Interactive Settings ---
 int fan_speed = 50, heater = 50;

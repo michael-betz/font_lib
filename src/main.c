@@ -54,7 +54,7 @@ static void init_sdl() {
 }
 
 int main(int argc, char *args[]) {
-    static int test_mode = 0;
+    static int test_mode = 1;
     init_sdl();
 
     bool is_running = true;
@@ -71,10 +71,12 @@ int main(int argc, char *args[]) {
                 if (e.key.keysym.sym == SDLK_F2)
                     test_mode = 1;
             }
-            if (test_mode == 0)
-                on_event_graphics(&e);
-            else if (test_mode == 1)
-                on_event_widget_gui(&e);
+            if (e.key.repeat == 0) {
+                if (test_mode == 0)
+                    on_event_graphics(&e);
+                else if (test_mode == 1)
+                    on_event_widget_gui(&e);
+            }
         }
 
         if (test_mode == 0)

@@ -84,7 +84,7 @@ void gui_draw(bool force_draw) {
             step_focus(1);
         if (ev & EV_ROT_CCW)
             step_focus(-1);
-        // Push enters edit mode (if widget has an event handler).
+        // Push enters edit mode (if widget is editable. Button and checkbox isnt).
         if ((ev & EV_ENC_S) && w && w->event) {
             if (w->editable) {
                 mode = MODE_EDIT;
@@ -119,9 +119,11 @@ void gui_draw(bool force_draw) {
         if (mode != MODE_SLIDE && i == cur_focus) {
             state = (mode == MODE_EDIT) ? W_EDITING : W_FOCUSED;
         }
-        w->draw(w, state);
+        w->draw(w, state, ev);
     }
 
+    if (mode != MODE_SLIDE)
+        return;
     // Draw a tiny slide indicator at the left (e.g. dots)
     int dot_w = slide_count * 8;
     int start_y = 32 - (dot_w / 2);
@@ -136,28 +138,57 @@ void gui_draw(bool force_draw) {
 }
 
 // TODO: smart (formatted) labels using escape characters
-void draw_static_label(const Widget *w, w_state_t state) {
+void draw_static_label(const Widget *w, w_state_t state, unsigned event_flags) {
     const LblData *d = (const LblData *)w->data;
     // state is ignored because it's never focused
     fnt_draw_text(w->x, w->y, d->text, 32, d->align);
 }
 
-void draw_dyn_label(const Widget *w, w_state_t state) {
+void draw_dyn_label(const Widget *w, w_state_t state, unsigned event_flags) {
     const DynLblData *d = (const DynLblData *)w->data;
     char buffer[32] = {0};
     d->format_value(buffer);  // e.g. formats "24.5 °C" into buffer
     fnt_draw_text(w->x, w->y, buffer, sizeof(buffer), d->align);
 }
 
-void draw_check_box(const Widget *w, w_state_t state) {
+void draw_button(const Widget *w, w_state_t state, unsigned event_flags) {
+    const ButtonData *d = (const ButtonData *)w->data;
+    int y = w->y - 1;
+    // Move button down when encoder is pressed down
+    if (state == W_FOCUSED && event_flags & 1) {
+        y += 1;
+    } else {
+    }
+    bbox_t bb = fnt_draw_text(w->x + 10, y, d->text, 32, H_LEFT | V_MIDDLE);
+
+    if (state == W_FOCUSED) {
+        set_draw_mode(DRAW_INV);
+        fill_rectangle_rbb(bb_add_spacing(bb, 4), 4, 0xFF);
+    } else {
+        set_draw_mode(DRAW_ADD);
+        fill_rectangle_rbb(bb_add_spacing(bb, 4), 4, 0x44);
+    }
+
+    set_draw_mode(DRAW_SET);
+}
+void event_button(const Widget *w, uint32_t ev) {
+    if (ev & EV_ENC_S)
+        printf("BUTTON event!!!\n");
+}
+
+void draw_check_box(const Widget *w, w_state_t state, unsigned event_flags) {
     const CheckBoxData *d = (const CheckBoxData *)w->data;
-    draw_ellipse(w->x, w->y, 5, 5, 0xF, 0xFF);
+    int y = w->y - 1;
+    // Move checkobox down when encoder is pressed down
+    if (state == W_FOCUSED && event_flags & 1)
+        y += 1;
+    draw_rectangle_c(w->x, y, 8, 8, 0xFF);
     if (*d->is_enabled)
-        fill_ellipse(w->x, w->y, 3, 3, 0xF, 0xFF);
+        fill_rectangle_c(w->x, y, 5, 5, 0xFF);
     bbox_t bb = fnt_draw_text(w->x + 10, w->y, d->text, 32, H_LEFT | V_MIDDLE);
     bb.left -= 14;
     if (state == W_FOCUSED)
-        draw_rectangle_rbb(bb_add_spacing(bb, 3), 3, 0x88);
+        draw_rectangle_rbb(bb_add_spacing(bb, 4), 4, 0x88);
 }
 void event_check_box(const Widget *w, uint32_t ev) {
     const CheckBoxData *d = (const CheckBoxData *)w->data;
@@ -165,16 +196,20 @@ void event_check_box(const Widget *w, uint32_t ev) {
         *d->is_enabled = !(*d->is_enabled);
 }
 
-void draw_setting(const Widget *w, w_state_t state) {
+void draw_setting(const Widget *w, w_state_t state, unsigned event_flags) {
     const SettingData *d = (const SettingData *)w->data;
-
-    uint8_t color = (state == W_EDITING) ? 0xFF : (state == W_FOCUSED) ? 0x88 : 0x44;
 
     // Draw the text inside
     bbox_t bb = fnt_draw_printf(w->x + 4, w->y + 2, H_LEFT | V_TOP, "%s: %d", d->label, *d->value);
 
     // Draw a nice rounded bounding box
-    draw_rectangle_rbb(bb_add_spacing(bb, 3), 3, color);
+    if (state == W_FOCUSED)
+        draw_rectangle_rbb(bb_add_spacing(bb, 4), 4, 0x88);
+    else if (state == W_EDITING) {
+        set_draw_mode(DRAW_INV);
+        fill_rectangle_rbb(bb_add_spacing(bb, 4), 4, 0xFF);
+        set_draw_mode(DRAW_SET);
+    }
 }
 
 void event_setting(const Widget *w, uint32_t ev) {
