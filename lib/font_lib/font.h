@@ -74,6 +74,10 @@ bool fnt_init_from_file(const char *filePrefix);
 
 void fnt_init_from_header(const font_header_t *header);
 
+// Set the font-table to be used for dynamic font selection
+// Use \x10 to \x1f control characters in a string to select an entry in the table
+void fnt_set_table(const font_header_t *headers[], unsigned n);
+
 // Print infos about the loaded font
 void fnt_print_info(void);
 

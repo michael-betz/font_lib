@@ -153,7 +153,7 @@ void draw_dyn_label(const Widget *w, w_state_t state, unsigned event_flags) {
 
 void draw_button(const Widget *w, w_state_t state, unsigned event_flags) {
     const LblData *d = (const LblData *)w->data;
-    int x = w->x, y = w->y - 1;
+    int x = w->x, y = w->y;
     // Move button down when encoder is pressed down
     if (state == W_FOCUSED && event_flags & 1) {
         y += 2;
@@ -178,7 +178,7 @@ void draw_button(const Widget *w, w_state_t state, unsigned event_flags) {
 
 void draw_check_box(const Widget *w, w_state_t state, unsigned event_flags) {
     const CheckBoxData *d = (const CheckBoxData *)w->data;
-    int y = w->y - 1;
+    int y = w->y;
     // Move checkobox down when encoder is pressed down
     if (state == W_FOCUSED && event_flags & 1)
         y += 1;
@@ -200,7 +200,7 @@ void draw_setting(const Widget *w, w_state_t state, unsigned event_flags) {
     const SettingData *d = (const SettingData *)w->data;
 
     // Draw the text inside
-    bbox_t bb = fnt_draw_printf(w->x + 4, w->y + 2, H_LEFT | V_TOP, "%s: %d", d->label, *d->value);
+    bbox_t bb = fnt_draw_printf(w->x, w->y, H_LEFT | V_MIDDLE, "%s: %d", d->label, *d->value);
 
     // Draw a nice rounded bounding box
     if (state == W_FOCUSED)

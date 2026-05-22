@@ -14,6 +14,10 @@
 // or in dynamic memory (when loading a binary .fnt file)
 static const font_header_t *fntHeader = NULL;
 
+// Table of font descriptors, for inline font changes with control characters
+static const font_header_t **fntTable = NULL;
+static unsigned fntTableN = 0;
+
 #ifdef FNT_SUPPORT
 // These are only used with init_from_file()
 // If fntFile is not NULL, the tables below need to be freed dynamically!
@@ -308,11 +312,19 @@ uint8_t *get_bitmap_buff_from_file(const glyph_description_t *desc) {
 #endif  // FNT_SUPPORT
 
 void fnt_init_from_header(const font_header_t *header) {
+    if (header == NULL)
+        return;
+
 #ifdef FNT_SUPPORT
     freeFont();
 #endif
 
     fntHeader = header;
+}
+
+void fnt_set_table(const font_header_t *headers[], unsigned n) {
+    fntTable = headers;
+    fntTableN = n;
 }
 
 static void
@@ -434,6 +446,14 @@ static void fnt_get_bb(const char *c, unsigned n, bool single_line_mode, bbox_t 
         if (codepoint == 0)
             continue;
 
+        // Font change operation with ASCII control characters
+        if (codepoint >= 0x10 && codepoint <= 0x1F) {
+            codepoint -= 0x10;
+            if (fntTable != NULL && codepoint < fntTableN)
+                fnt_init_from_header(fntTable[codepoint]);
+            continue;
+        }
+
         if (codepoint == '\n' || codepoint == '\r') {
             if (single_line_mode)
                 break;
@@ -531,6 +551,16 @@ fnt_text(const int x_a, const int y_a, const char *c, unsigned n, fnt_align_t al
         n--;
         if (codepoint == 0)
             continue;
+
+        // Font change operation with ASCII control characters
+        if (codepoint >= 0x10 && codepoint <= 0x1F) {
+            codepoint -= 0x10;
+            if (fntTable != NULL && codepoint < fntTableN)
+                fnt_init_from_header(fntTable[codepoint]);
+            // else
+            //     printf("WARNING: font %d not defined in table!\n", codepoint);
+            continue;
+        }
 
         if (codepoint == '\n') {
             cursor_y += fntHeader->linespace;

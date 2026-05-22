@@ -71,7 +71,7 @@ typedef struct {
 void draw_static_label(const Widget *w, w_state_t state, unsigned event_flags);
 
 #define WIDGET_LABEL(_x, _y, _text, _align)                                                        \
-    {                                                                                              \
+    &(Widget) {                                                                                    \
         .draw = draw_static_label, .event = NULL, .x = (_x), .y = (_y), .selectable = false,       \
         .data = &(const LblData) {                                                                 \
             .text = (_text), .align = (_align)                                                     \
@@ -87,7 +87,7 @@ typedef struct {
 void draw_dyn_label(const Widget *w, w_state_t state, unsigned event_flags);
 
 #define WIDGET_DYNLBL(_x, _y, _cb_format_value, _align)                                            \
-    {                                                                                              \
+    &(Widget) {                                                                                    \
         .draw = draw_dyn_label, .event = NULL, .x = (_x), .y = (_y), .selectable = false,          \
         .data = &(const DynLblData) {                                                              \
             .format_value = (_cb_format_value), .align = (_align)                                  \
@@ -97,7 +97,7 @@ void draw_dyn_label(const Widget *w, w_state_t state, unsigned event_flags);
 // A button
 void draw_button(const Widget *w, w_state_t state, unsigned event_flags);
 #define WIDGET_BUTTON(_x, _y, _text, _event_cb)                                                    \
-    {                                                                                              \
+    &(Widget) {                                                                                    \
         .draw = draw_button, .event = _event_cb, .x = (_x), .y = (_y), .selectable = true,         \
         .data = &(const LblData) {                                                                 \
             .text = (_text)                                                                        \
@@ -114,7 +114,7 @@ void draw_check_box(const Widget *w, w_state_t state, unsigned event_flags);
 void event_check_box(const Widget *w, uint32_t ev);
 
 #define WIDGET_CHECK_BOX(_x, _y, _text, _is_enabled)                                               \
-    {                                                                                              \
+    &(Widget) {                                                                                    \
         .draw = draw_check_box, .event = event_check_box, .x = (_x), .y = (_y),                    \
         .selectable = true, .data = &(const CheckBoxData) {                                        \
             .text = (_text), .is_enabled = (_is_enabled)                                           \
@@ -133,7 +133,7 @@ void draw_setting(const Widget *w, w_state_t state, unsigned event_flags);
 void event_setting(const Widget *w, uint32_t ev);
 
 #define WIDGET_SETTING(_x, _y, _label, _value_ptr, _min, _max, _step)                              \
-    {                                                                                              \
+    &(Widget) {                                                                                    \
         .draw = draw_setting, .event = event_setting, .x = (_x), .y = (_y), .selectable = true,    \
         .editable = true, .data = &(const SettingData) {                                           \
             .label = (_label), .value = (_value_ptr), .min = (_min), .max = (_max),                \
