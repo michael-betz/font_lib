@@ -98,7 +98,6 @@ void set_pixel(int x, int y, uint8_t value) {
 }
 
 void add_pixel(int x, int y, uint8_t value) {
-    // D("(%d, %d): %d\n", x, y, value);
     if (x < x_min || x >= x_max || y < y_min || y >= y_max)
         return;
 #if FB_BPP == 8
@@ -118,7 +117,6 @@ void add_pixel(int x, int y, uint8_t value) {
 }
 
 void subtract_pixel(int x, int y, uint8_t value) {
-    // D("(%d, %d): %d\n", x, y, value);
     if (x < x_min || x >= x_max || y < y_min || y >= y_max)
         return;
 #if FB_BPP == 8

@@ -5,6 +5,18 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+// Enable printf() output by defining the FB_DEBUG=1 macro
+#ifndef FB_DEBUG
+#define FB_DEBUG 0
+#endif
+
+#if (FB_DEBUG == 1)
+#include <stdio.h>
+#define D(format, ...) printf(format, ##__VA_ARGS__)
+#else
+#define D(...)
+#endif
+
 enum {
     // Flag is set if outline glyphs are available in the font,
     // which doubles the number of glyphs

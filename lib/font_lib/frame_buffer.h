@@ -15,18 +15,6 @@
 //	 * 1: use with SSD1306 based OLEDs with monochrome pixels
 // #define FB_BPP 8
 
-// Enable printf() output by defining the FB_DEBUG=1 macro
-#ifndef FB_DEBUG
-#define FB_DEBUG 0
-#endif
-
-#if (FB_DEBUG == 1)
-#include <stdio.h>
-#define D(format, ...) printf(format, ##__VA_ARGS__)
-#else
-#define D(...)
-#endif
-
 #define FB_SIZE ((FB_WIDTH * FB_HEIGHT * FB_BPP + 7) / 8)
 
 typedef enum {
