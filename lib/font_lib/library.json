@@ -1,17 +1,11 @@
 {
   "name": "font_lib",
   "version": "0.0.1",
-  "description": "A 1, 4 and 8 bit bitmap-font and graphics library.",
+  "description": "Platform-independent 1, 4 and 8 bit bitmap-font and graphics library.",
   "keywords": "font bitmap graphics",
   "repository": {
     "type": "git",
     "url": "https://github.com/michael-betz/font_lib"
-  },
-  "examples": [
-    "src/main.c"
-  ],
-  "build": {
-    "srcDir": "lib/font_lib"
   },
   "authors": [
     {

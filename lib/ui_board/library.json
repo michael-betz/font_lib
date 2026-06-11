@@ -1,0 +1,16 @@
+{
+  "name": "ui_board",
+  "version": "0.0.1",
+  "description": "Hardware driver for ui_board family: SSD1322 OLED via SPI, rotary encoder, LEDs.",
+  "authors": [
+    {
+      "name": "Michael Betz",
+      "email": "web@betz-engineering.ch",
+      "url": "https://betz-engineering.ch"
+    }
+  ],
+  "license": "MIT",
+  "homepage": "https://betz-engineering.ch",
+  "frameworks": "*",
+  "platforms": "*"
+}
