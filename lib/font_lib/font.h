@@ -5,12 +5,12 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-// Enable printf() output by defining the FB_DEBUG=1 macro
-#ifndef FB_DEBUG
-#define FB_DEBUG 0
+// Enable printf() output by defining the DEBUG=1 macro
+#ifndef DEBUG
+#define DEBUG 0
 #endif
 
-#if (FB_DEBUG == 1)
+#if (DEBUG == 1)
 #include <stdio.h>
 #define D(format, ...) printf(format, ##__VA_ARGS__)
 #else
