@@ -21,29 +21,26 @@ void draw_dyn_label(const Widget *w, w_state_t state, unsigned event_flags) {
 void draw_button(const Widget *w, w_state_t state, unsigned event_flags) {
     const LblData *d = (const LblData *)w->data;
     int x = w->x, y = w->y;
-    // Move button down when encoder is pressed down
-    if (state == W_FOCUSED && event_flags & 1) {
-        y += 2;
-        x += 2;
-    }
     bbox_t bb = fnt_draw_text(x, y, d->text, 32, H_LEFT | V_MIDDLE);
+    bb = bb_add_spacing(bb, d->padding);
 
-    const int padding = 4;
-    bb = bb_add_spacing(bb, padding);
+    set_draw_mode(DRAW_ADD);
+    fill_rectangle_bb(bb, 0x33);
 
-    if (state == W_FOCUSED) {
-        set_draw_mode(DRAW_INV);
-        fill_rectangle_bb(bb, 0xFF);
-    } else {
-        set_draw_mode(DRAW_ADD);
-        fill_rectangle_bb(bb, 0x20);
-    }
+    if (state == W_FOCUSED)
+        draw_rectangle_rbb(bb_add_spacing(bb, 5), 4, 0xFF);
+
+    // WIN95 style shading
     set_draw_mode(DRAW_SET);
-    if (state == W_FOCUSED && event_flags & 1)
-        return;
-
-    draw_hline(bb.left + 2, bb.right + 2, bb.bottom + 2, 0x10);
-    draw_vline(bb.right + 2, bb.top + 2, bb.bottom + 2, 0x10);
+    draw_vline(bb.left - 1, bb.top - 1, bb.bottom + 1, 0xDD);
+    draw_hline(bb.left - 1, bb.right + 1, bb.top - 1, 0xDD);
+    draw_vline(bb.right + 1, bb.top, bb.bottom + 1, 0x11);
+    draw_hline(bb.left, bb.right + 1, bb.bottom + 1, 0x11);
+    // Invert button when encoder is pressed down
+    if (state == W_FOCUSED && event_flags & 1) {
+        set_draw_mode(DRAW_INV);
+        fill_rectangle_bb(bb_add_spacing(bb, 1), 0xFF);
+    }
 }
 
 void draw_check_box(const Widget *w, w_state_t state, unsigned event_flags) {
