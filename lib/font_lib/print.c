@@ -33,32 +33,42 @@ static void dec(int32_t val, char *buf) {
 // dp 3: 0.130
 // dp 4: .0130
 void udec_dp(uint32_t val, const uint8_t n, const uint8_t dp, char *buf) {
-    char buffer[16], *p = buffer;
-    unsigned i;
-    for (i = 0; i < n; i++) {
-        if (i > 0 && i == dp)
-            *p++ = '.';
-        if (val == 0 && i > dp)  // suppress leading zeros
-            *p++ = ' ';
+    // Total string length is n, plus 1 if there is a decimal point
+    int len = (dp == 0) ? n : n + 1;
+    buf[len] = '\0';  // Null terminate the end of the string
+
+    for (int i = 0; i < n; i++) {
+        // 1. Insert decimal point if we are at the dp position
+        if (dp > 0 && i == dp)
+            buf[--len] = '.';
+
+        // 2. Insert padding space or the next digit
+        if (val == 0 && i > dp)
+            buf[--len] = ' ';
         else
-            *p++ = '0' + val % 10;
-        val = val / 10;
+            buf[--len] = '0' + (val % 10);
+
+        val /= 10;
     }
-    if (i == dp)
-        *p++ = '.';
-    while (p != buffer)
-        *buf++ = *(--p);  // reverse the string
-    *buf++ = '\0';
+
+    // 3. Handle the edge case where the decimal point is at the very front
+    if (dp == n)
+        buf[--len] = '.';
 }
 
 void dec_dp(int32_t val, const uint8_t n, const uint8_t dp, char *buf) {
+    uint32_t uval = (val < 0) ? -(uint32_t)val : (uint32_t)val;
+
+    // Generate the unsigned string first
+    udec_dp(uval, n, dp, buf);
+
     if (val < 0) {
-        *buf++ = '-';
-        val = -val;
-    } else {
-        *buf++ = ' ';
+        // Find the last leading space and replace it with a - sign
+        char *p = buf;
+        while (*p == ' ' && *(p + 1) == ' ')
+            p++;
+        *p = '-';
     }
-    udec_dp(val, n, dp, buf);
 }
 
 void udec_fix(uint32_t val, const uint8_t nFract, uint8_t nDigits, char *buf) {

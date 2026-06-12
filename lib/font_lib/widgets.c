@@ -49,9 +49,9 @@ void draw_check_box(const Widget *w, w_state_t state, unsigned event_flags) {
     // Move checkobox down when encoder is pressed down
     if (state == W_FOCUSED && event_flags & 1)
         y += 1;
-    draw_rectangle_c(w->x, y, 8, 8, 0xFF);
+    draw_rectangle_c(w->x, y - 1, 8, 8, 0xFF);
     if (*d->is_enabled)
-        fill_rectangle_c(w->x, y, 5, 5, 0xFF);
+        fill_rectangle_c(w->x, y - 1, 5, 5, 0xFF);
     bbox_t bb = fnt_draw_text(w->x + 10, w->y, d->text, 32, H_LEFT | V_MIDDLE);
     bb.left -= 14;
     if (state == W_FOCUSED)

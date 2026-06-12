@@ -61,8 +61,8 @@ static const Widget *const slide1_widgets[] = {
                  "Test1\x10",
                  H_MIDDLE | V_TOP),
     WIDGET_DYNLBL(32, 20, get_temp_cb, H_LEFT | V_TOP),
-    WIDGET_CHECK_BOX(16, 48, "Power enabled", &state),
-    WIDGET_BUTTON(130, 48, "Push me!", button_cb),
+    WIDGET_CHECK_BOX(32, 48, "Power enabled", &state),
+    WIDGET_BUTTON(148, 48, "Push me!", button_cb),
 };
 
 static const Screen slide1 = {slide1_widgets, 4};
@@ -86,8 +86,8 @@ static const Screen slide2 = {slide2_widgets, 3};
 //  Third slide
 // ------------------
 const char *const l_labels[] = {"Inlet", "Outlet", "Diff"};
-int p_values[] = {1253, 724, 0};
-int t_values[] = {2421, 2680, 0};
+int p_values[] = {1253, 124, 0};
+int t_values[] = {2421, 2580, 0};
 void format_pressure(char *buffer, int val) { dec_dp(val, 5, 0, buffer); }
 void format_temperature(char *buffer, int val) { dec_dp(val, 5, 2, buffer); }
 
@@ -113,9 +113,9 @@ void test_widget_gui(void) {
     p_values[0] += 1;
     p_values[1] -= 1;
     p_values[2] = p_values[0] - p_values[1];
-    t_values[0] += 1;
-    t_values[1] -= 1;
-    t_values[2] = p_values[0] - p_values[1];
+    t_values[0] -= 1;
+    t_values[1] += 1;
+    t_values[2] = t_values[0] - t_values[1];
 
     frame++;
 }
