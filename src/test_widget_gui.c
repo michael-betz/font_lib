@@ -46,7 +46,7 @@ unsigned get_event_flags(void) {
 //  First slide
 // ------------------
 // Example sensor callback
-static void get_temp_cb(char *buf) { sprintf(buf, "Temp: %d C", frame % 150); }
+static void get_temp_cb(char *buf) { sprintf(buf, "\x10Temp:\x11 %d\x10°C", frame % 150); }
 
 static void button_cb(const Widget *w, uint32_t ev) {
     if (ev & EV_ENC_S)
@@ -55,14 +55,10 @@ static void button_cb(const Widget *w, uint32_t ev) {
 
 static bool state = false;
 static const Widget *const slide1_widgets[] = {
-    WIDGET_LABEL(128,
-                 0,
-                 "\x11"
-                 "Test1\x10",
-                 H_MIDDLE | V_TOP),
+    WIDGET_LABEL(128, 0, "\x16Test1\x10", H_MIDDLE | V_TOP),
     WIDGET_DYNLBL(32, 20, get_temp_cb, H_LEFT | V_TOP),
-    WIDGET_CHECK_BOX(32, 48, "Power enabled", &state),
-    WIDGET_BUTTON(148, 48, "Push me!", button_cb),
+    WIDGET_CHECK_BOX(32, 48, "\x12Power enabled", &state),
+    WIDGET_BUTTON(148, 48, "\x11Push me!", button_cb),
 };
 
 static const Screen slide1 = {slide1_widgets, 4};
@@ -72,13 +68,9 @@ static const Screen slide1 = {slide1_widgets, 4};
 // ------------------
 int fan_speed = 50, heater = 50;
 static const Widget *const slide2_widgets[] = {
-    WIDGET_LABEL(128,
-                 2,
-                 "\x11"
-                 "Fan Controls\x10",
-                 H_MIDDLE | V_TOP),
-    WIDGET_SETTING(32, 48, "Speed", &fan_speed, 0, 100, 10),
-    WIDGET_SETTING(128, 48, "Heater", &heater, -50, 50, 5),
+    WIDGET_LABEL(128, 2, "\x16 Fan Controls", H_MIDDLE | V_TOP),
+    WIDGET_SETTING(32, 48, "\x11Speed\x15", &fan_speed, 0, 100, 10),
+    WIDGET_SETTING(128, 48, "\x11Heater\x15", &heater, -50, 50, 5),
 };
 static const Screen slide2 = {slide2_widgets, 3};
 
@@ -92,9 +84,18 @@ void format_pressure(char *buffer, int val) { dec_dp(val, 5, 0, buffer); }
 void format_temperature(char *buffer, int val) { dec_dp(val, 5, 2, buffer); }
 
 static const Widget *const slide3_widgets[] = {
+    WIDGET_TABLE_VIEW(125,
+                      14,
+                      format_pressure,
+                      3,
+                      14,
+                      "\x10P [mbar]",
+                      l_labels,
+                      p_values,
+                      &f_monogram,
+                      &f_fixed_b),
     WIDGET_TABLE_VIEW(
-        125, 14, format_pressure, 3, 14, "P [mbar]", l_labels, p_values, &f_fixed, &f_fixed),
-    WIDGET_TABLE_VIEW(200, 14, format_temperature, 3, 14, "T [°C]", NULL, t_values, NULL, NULL)};
+        200, 14, format_temperature, 3, 14, "\x10T [°C]", NULL, t_values, NULL, &f_fixed_b)};
 static const Screen slide3 = {slide3_widgets, 2};
 
 static const Screen *my_slides[] = {&slide1, &slide2, &slide3};
@@ -103,8 +104,16 @@ void test_widget_gui(void) {
     if (frame == 0) {
         draw_rectangle(0, 0, 256, 64, 0x88);
         fnt_init_from_header(&f_fixed);
-        static const font_header_t *fnt_table[2] = {&f_fixed, &f_vollkorn};
-        fnt_set_table(fnt_table, 2);
+        static const font_header_t *fnt_table[] = {
+            &f_fixed,     // 0
+            &f_fixed_b,   // 1
+            &f_fixed_o,   // 2
+            &f_monogram,  // 3
+            &f_ubuntu,    // 4
+            &f_ubuntu_b,  // 5
+            &f_vollkorn,  // 6
+        };
+        fnt_set_table(fnt_table, 7);
         gui_init(my_slides, 3);
     }
     set_draw_mode(DRAW_SET);

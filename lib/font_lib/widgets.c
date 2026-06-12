@@ -67,7 +67,7 @@ void draw_setting(const Widget *w, w_state_t state, unsigned event_flags) {
     const SettingData *d = (const SettingData *)w->data;
 
     // Draw the text inside
-    bbox_t bb = fnt_draw_printf(w->x, w->y, H_LEFT | V_MIDDLE, "%s: %d", d->label, *d->value);
+    bbox_t bb = fnt_draw_printf(w->x, w->y, H_LEFT | V_MIDDLE, "%s %d", d->label, *d->value);
 
     // Draw a nice rounded bounding box
     if (state == W_FOCUSED)
