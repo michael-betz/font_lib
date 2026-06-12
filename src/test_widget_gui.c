@@ -2,7 +2,8 @@
 #include "fonts.h"
 #include "frame_buffer.h"
 #include "graphics.h"
-#include "widget_gui.h"
+#include "print.h"
+#include "widgets.h"
 #include <SDL2/SDL.h>
 #include <stdio.h>
 
@@ -81,7 +82,22 @@ static const Widget *const slide2_widgets[] = {
 };
 static const Screen slide2 = {slide2_widgets, 3};
 
-static const Screen *my_slides[] = {&slide1, &slide2};
+// ------------------
+//  Third slide
+// ------------------
+const char *const l_labels[] = {"Inlet", "Outlet", "Diff"};
+int p_values[] = {1253, 724, 0};
+int t_values[] = {2421, 2680, 0};
+void format_pressure(char *buffer, int val) { dec_dp(val, 5, 0, buffer); }
+void format_temperature(char *buffer, int val) { dec_dp(val, 5, 2, buffer); }
+
+static const Widget *const slide3_widgets[] = {
+    WIDGET_TABLE_VIEW(
+        125, 14, format_pressure, 3, 14, "P [mbar]", l_labels, p_values, &f_fixed, &f_fixed),
+    WIDGET_TABLE_VIEW(200, 14, format_temperature, 3, 14, "T [°C]", NULL, t_values, NULL, NULL)};
+static const Screen slide3 = {slide3_widgets, 2};
+
+static const Screen *my_slides[] = {&slide1, &slide2, &slide3};
 
 void test_widget_gui(void) {
     if (frame == 0) {
@@ -89,10 +105,17 @@ void test_widget_gui(void) {
         fnt_init_from_header(&f_fixed);
         static const font_header_t *fnt_table[2] = {&f_fixed, &f_vollkorn};
         fnt_set_table(fnt_table, 2);
-        gui_init(my_slides, 2);
+        gui_init(my_slides, 3);
     }
     set_draw_mode(DRAW_SET);
     fill_rectangle(0, 0, 255, 63, 0);
     gui_draw(frame == 0 || true);
+    p_values[0] += 1;
+    p_values[1] -= 1;
+    p_values[2] = p_values[0] - p_values[1];
+    t_values[0] += 1;
+    t_values[1] -= 1;
+    t_values[2] = p_values[0] - p_values[1];
+
     frame++;
 }
