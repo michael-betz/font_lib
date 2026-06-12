@@ -12,6 +12,7 @@
 typedef struct {
     const char *text;
     fnt_align_t align;
+    int padding;
 } LblData;
 
 void draw_static_label(const Widget *w, w_state_t state, unsigned event_flags);
@@ -42,11 +43,11 @@ void draw_dyn_label(const Widget *w, w_state_t state, unsigned event_flags);
 
 // A button
 void draw_button(const Widget *w, w_state_t state, unsigned event_flags);
-#define W_BUTTON(_x, _y, _text, _event_cb)                                                         \
+#define W_BUTTON(_x, _y, _padding, _text, _event_cb)                                               \
     &(Widget) {                                                                                    \
         .draw = draw_button, .event = _event_cb, .x = (_x), .y = (_y), .selectable = true,         \
         .data = &(const LblData) {                                                                 \
-            .text = (_text)                                                                        \
+            .text = (_text), .padding = _padding                                                   \
         }                                                                                          \
     }
 

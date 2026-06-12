@@ -128,11 +128,11 @@ void gui_draw(bool force_draw) {
     int dot_w = slide_count * 8;
     int start_y = 32 - (dot_w / 2);
     draw_rectangle_r(
-        -6, start_y - 8, 8, start_y + slide_count * 8, 5, mode == MODE_SLIDE ? 0xFF : 0x30);
+        -6, start_y - 8, 8, start_y + slide_count * 8, 5, mode == MODE_SLIDE ? 0xFF : 0x20);
     for (int i = 0; i < slide_count; i++) {
         if (i == cur_slide)
-            fill_ellipse(3, start_y + (i * 8), 2, 2, 0xF, mode == MODE_SLIDE ? 0xFF : 0x30);
+            fill_ellipse(3, start_y + (i * 8), 2, 2, 0xF, mode == MODE_SLIDE ? 0xFF : 0x20);
         else
-            draw_ellipse(3, start_y + (i * 8), 1, 1, 0xF, mode == MODE_SLIDE ? 0x80 : 0x30);
+            draw_ellipse(3, start_y + (i * 8), 1, 1, 0xF, mode == MODE_SLIDE ? 0x80 : 0x20);
     }
 }

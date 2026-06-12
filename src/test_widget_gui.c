@@ -58,7 +58,7 @@ static const Widget *const slide1_widgets[] = {
     W_LABEL(128, 0, "\x16Test1\x10", H_MIDDLE | V_TOP),
     W_DYNLBL(32, 20, get_temp_cb, H_LEFT | V_TOP),
     W_CHECK_BOX(32, 48, "\x12Power enabled", &state),
-    W_BUTTON(148, 48, "\x11Push me!", button_cb),
+    W_BUTTON(148, 48, 4, "\x11Push me!", button_cb),
 };
 
 static const Screen slide1 = {slide1_widgets, 4};

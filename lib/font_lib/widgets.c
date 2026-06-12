@@ -28,19 +28,22 @@ void draw_button(const Widget *w, w_state_t state, unsigned event_flags) {
     }
     bbox_t bb = fnt_draw_text(x, y, d->text, 32, H_LEFT | V_MIDDLE);
 
+    const int padding = 4;
+    bb = bb_add_spacing(bb, padding);
+
     if (state == W_FOCUSED) {
         set_draw_mode(DRAW_INV);
-        fill_rectangle_bb(bb_add_spacing(bb, 2), 0xFF);
+        fill_rectangle_bb(bb, 0xFF);
     } else {
         set_draw_mode(DRAW_ADD);
-        fill_rectangle_bb(bb_add_spacing(bb, 2), 0x44);
+        fill_rectangle_bb(bb, 0x20);
     }
     set_draw_mode(DRAW_SET);
     if (state == W_FOCUSED && event_flags & 1)
         return;
 
-    draw_hline(bb.left, bb.right + 4, bb.bottom + 4, 0x44);
-    draw_vline(bb.right + 4, bb.top, bb.bottom + 4, 0x44);
+    draw_hline(bb.left + 2, bb.right + 2, bb.bottom + 2, 0x10);
+    draw_vline(bb.right + 2, bb.top + 2, bb.bottom + 2, 0x10);
 }
 
 void draw_check_box(const Widget *w, w_state_t state, unsigned event_flags) {
