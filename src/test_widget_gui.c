@@ -55,10 +55,10 @@ static void button_cb(const Widget *w, uint32_t ev) {
 
 static bool state = false;
 static const Widget *const slide1_widgets[] = {
-    WIDGET_LABEL(128, 0, "\x16Test1\x10", H_MIDDLE | V_TOP),
-    WIDGET_DYNLBL(32, 20, get_temp_cb, H_LEFT | V_TOP),
-    WIDGET_CHECK_BOX(32, 48, "\x12Power enabled", &state),
-    WIDGET_BUTTON(148, 48, "\x11Push me!", button_cb),
+    W_LABEL(128, 0, "\x16Test1\x10", H_MIDDLE | V_TOP),
+    W_DYNLBL(32, 20, get_temp_cb, H_LEFT | V_TOP),
+    W_CHECK_BOX(32, 48, "\x12Power enabled", &state),
+    W_BUTTON(148, 48, "\x11Push me!", button_cb),
 };
 
 static const Screen slide1 = {slide1_widgets, 4};
@@ -68,9 +68,9 @@ static const Screen slide1 = {slide1_widgets, 4};
 // ------------------
 int fan_speed = 50, heater = 50;
 static const Widget *const slide2_widgets[] = {
-    WIDGET_LABEL(128, 2, "\x16 Fan Controls", H_MIDDLE | V_TOP),
-    WIDGET_SETTING(32, 48, "\x11Speed\x15", &fan_speed, 0, 100, 10),
-    WIDGET_SETTING(128, 48, "\x11Heater\x15", &heater, -50, 50, 5),
+    W_LABEL(128, 2, "\x16 Fan Controls", H_MIDDLE | V_TOP),
+    W_SETTING(32, 48, "\x11Speed\x15", &fan_speed, 0, 100, 10),
+    W_SETTING(128, 48, "\x11Heater\x15", &heater, -50, 50, 5),
 };
 static const Screen slide2 = {slide2_widgets, 3};
 
@@ -80,22 +80,13 @@ static const Screen slide2 = {slide2_widgets, 3};
 const char *const l_labels[] = {"Inlet", "Outlet", "Diff"};
 int p_values[] = {1253, 124, 0};
 int t_values[] = {2421, 2580, 0};
-void format_pressure(char *buffer, int val) { dec_dp(val, 5, 0, buffer); }
-void format_temperature(char *buffer, int val) { dec_dp(val, 5, 2, buffer); }
+void fmt_p(char *buffer, int val) { dec_dp(val, 5, 0, buffer); }
+void fmt_t(char *buffer, int val) { dec_dp(val, 5, 2, buffer); }
 
 static const Widget *const slide3_widgets[] = {
-    WIDGET_TABLE_VIEW(125,
-                      14,
-                      format_pressure,
-                      3,
-                      14,
-                      "\x10P [mbar]",
-                      l_labels,
-                      p_values,
-                      &f_monogram,
-                      &f_fixed_b),
-    WIDGET_TABLE_VIEW(
-        200, 14, format_temperature, 3, 14, "\x10T [°C]", NULL, t_values, NULL, &f_fixed_b)};
+    W_TABLE_VIEW(
+        125, 14, fmt_p, 3, 14, "\x10P [mbar]", l_labels, p_values, &f_monogram, &f_fixed_b),
+    W_TABLE_VIEW(200, 14, fmt_t, 3, 14, "\x10T [°C]", NULL, t_values, NULL, &f_fixed_b)};
 static const Screen slide3 = {slide3_widgets, 2};
 
 static const Screen *my_slides[] = {&slide1, &slide2, &slide3};
