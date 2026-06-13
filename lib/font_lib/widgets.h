@@ -111,3 +111,24 @@ void draw_grid_view(const Widget *w, w_state_t state, unsigned event_flags);
             .row_advance = _row_advance, .col_advance = _col_advance,                              \
         }                                                                                          \
     }
+
+// A vertical scroll-bar
+typedef struct {
+    const int height;
+    const int slider_height;
+    int *position;
+    const int min_position;
+    const int max_position;
+} VScrollData;
+
+void draw_v_scroll(const Widget *w, w_state_t state, unsigned event_flags);
+void event_v_scroll(const Widget *w, uint32_t ev);
+
+#define W_V_SCROLL(_x, _y, _height, _slider_height, _position, _min_position, _max_position)       \
+    &(Widget) {                                                                                    \
+        .draw = draw_v_scroll, .event = event_v_scroll, .x = (_x), .y = (_y), .selectable = true,  \
+        .editable = true, .data = &(const VScrollData) {                                           \
+            .height = _height, .slider_height = _slider_height, .position = _position,             \
+            .min_position = _min_position, .max_position = _max_position                           \
+        }                                                                                          \
+    }

@@ -94,6 +94,45 @@ void event_setting(const Widget *w, uint32_t ev) {
         *d->value = d->min;
 }
 
+void draw_v_scroll(const Widget *w, w_state_t state, unsigned event_flags) {
+    const VScrollData *d = (const VScrollData *)w->data;
+    const int width = 4;
+
+    bbox_t bb = {w->x, w->x + width, w->y, w->y + d->height};
+
+    draw_rectangle_bb(bb, state == W_EDITING ? 0xA0 : 0x40);
+
+    // Draw a nice rounded bounding box if focused
+    if (state == W_FOCUSED || state == W_EDITING)
+        draw_rectangle_rbb(bb_add_spacing(bb, 4), 4, 0x88);
+
+    const int n_steps = d->max_position - d->min_position;
+    const int dy = (d->height - d->slider_height) * 256 / n_steps;
+    const int y0 = ((*d->position - d->min_position) * dy + 128) / 256;
+
+    fill_rectangle(w->x + 1,
+                   w->y + y0 + 1,
+                   w->x + width - 1,
+                   w->y + y0 + d->slider_height - 1,
+                   state == W_EDITING ? 0xFF : 0x40);
+}
+
+void event_v_scroll(const Widget *w, uint32_t ev) {
+    const VScrollData *d = (const VScrollData *)w->data;
+
+    // Increment / decrement value by step
+    if (ev & EV_ROT_CW)
+        *d->position += 1;
+    if (ev & EV_ROT_CCW)
+        *d->position -= 1;
+
+    // Clamp values
+    if (*d->position > d->max_position)
+        *d->position = d->max_position;
+    if (*d->position < d->min_position)
+        *d->position = d->min_position;
+}
+
 // -----------------------------
 //  Non interactive widgets
 // -----------------------------

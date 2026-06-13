@@ -102,8 +102,10 @@ static void cell(int row, int col, char *buffer, const int buffer_size) {
     }
 }
 
-static const Widget *const slide3_widgets[] = {W_GRID_VIEW(64, 14, cell, 4, 3, 15, 54)};
-static const Screen slide3 = {slide3_widgets, 1};
+int scroll_pos = 0;
+static const Widget *const slide3_widgets[] = {W_GRID_VIEW(64, 14, cell, 4, 3, 15, 54),
+                                               W_V_SCROLL(200, 10, 48, 8, &scroll_pos, -4, 7)};
+static const Screen slide3 = {slide3_widgets, 2};
 
 static const Screen *my_slides[] = {&slide1, &slide2, &slide3};
 
