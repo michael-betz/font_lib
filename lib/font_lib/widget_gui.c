@@ -37,6 +37,24 @@ static void step_focus(int dir) {
     printf("step_focus(%d): no selectable widget found on slide %d\n", dir, cur_slide);
 }
 
+// Returns the index of the widget if it is the ONLY selectable widget on the screen
+// AND it is editable. Otherwise, returns -1.
+static int get_shortcut_widget(const Screen *s) {
+    int selectable_count = 0;
+    int target_idx = -1;
+    for (int i = 0; i < s->count; i++) {
+        if (s->widgets[i]->selectable) {
+            selectable_count++;
+            target_idx = i;
+        }
+    }
+
+    if (selectable_count == 1 && s->widgets[target_idx]->editable) {
+        return target_idx;
+    }
+    return -1;
+}
+
 void gui_draw(bool force_draw) {
     if (slide_count == 0)
         return;
@@ -52,8 +70,13 @@ void gui_draw(bool force_draw) {
     // Handle BACK button globally
     if (ev & (EV_BACK_S | EV_ENC_L)) {
         if (mode == MODE_EDIT) {
-            mode = MODE_FOCUS;
-            printf("MODE_FOCUS\n");
+            if (get_shortcut_widget(s) >= 0) {
+                mode = MODE_SLIDE;  // Skip focus on exit!
+                printf("shortcut: MODE_SLIDE\n");
+            } else {
+                mode = MODE_FOCUS;
+                printf("MODE_FOCUS\n");
+            }
         } else if (mode == MODE_FOCUS) {
             mode = MODE_SLIDE;
             printf("MODE_SLIDE\n");
@@ -67,13 +90,21 @@ void gui_draw(bool force_draw) {
             cur_slide = (cur_slide + 1) % slide_count;
         if (ev & EV_ROT_CCW)
             cur_slide = (cur_slide - 1 + slide_count) % slide_count;
-        // Push enters focus mode (if slide has selectable widgets).
+
+        // Push enters focus/edit mode
         if (ev & EV_ENC_S) {
-            cur_focus = 0;
-            step_focus(0);  // Find first selectable
-            if (s->widgets[cur_focus]->selectable) {
-                mode = MODE_FOCUS;
-                printf("MODE_FOCUS\n");
+            int shortcut = get_shortcut_widget(s);
+            if (shortcut >= 0) {
+                cur_focus = shortcut;  // Set focus directly to the widget
+                mode = MODE_EDIT;
+                printf("shortcut: MODE_EDIT\n");
+            } else {
+                cur_focus = 0;
+                step_focus(0);  // Find first selectable
+                if (s->widgets[cur_focus]->selectable) {
+                    mode = MODE_FOCUS;
+                    printf("MODE_FOCUS\n");
+                }
             }
         }
         break;
@@ -84,7 +115,7 @@ void gui_draw(bool force_draw) {
             step_focus(1);
         if (ev & EV_ROT_CCW)
             step_focus(-1);
-        // Push enters edit mode (if widget is editable. Button and checkbox isnt).
+        // Push enters edit mode (if widget is editable. Button and checkbox isn't).
         if ((ev & EV_ENC_S) && w && w->event) {
             if (w->editable) {
                 mode = MODE_EDIT;
@@ -96,10 +127,15 @@ void gui_draw(bool force_draw) {
         break;
 
     case MODE_EDIT:
-        // Push confirms edit and returns to focus.
+        // Push confirms edit and returns to focus or slide mode.
         if (ev & EV_ENC_S) {
-            mode = MODE_FOCUS;
-            printf("MODE_FOCUS\n");
+            if (get_shortcut_widget(s) >= 0) {
+                mode = MODE_SLIDE;  // Skip focus on confirm!
+                printf("shortcut: MODE_SLIDE\n");
+            } else {
+                mode = MODE_FOCUS;
+                printf("MODE_FOCUS\n");
+            }
         }
         // Otherwise, route events to the widget.
         else if (w && w->event)

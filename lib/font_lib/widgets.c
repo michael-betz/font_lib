@@ -104,7 +104,7 @@ void draw_v_scroll(const Widget *w, w_state_t state, unsigned event_flags) {
 
     // Draw a nice rounded bounding box if focused
     if (state == W_FOCUSED || state == W_EDITING)
-        draw_rectangle_rbb(bb_add_spacing(bb, 4), 4, 0x88);
+        draw_rectangle_rbb(bb_add_spacing(bb, 3), 4, 0xFF);
 
     const int n_steps = d->max_position - d->min_position;
     const int dy = (d->height - d->slider_height) * 256 / n_steps;
@@ -139,14 +139,33 @@ void event_v_scroll(const Widget *w, uint32_t ev) {
 
 void draw_grid_view(const Widget *w, w_state_t state, unsigned event_flags) {
     const GridViewData *d = (const GridViewData *)w->data;
+    int scroll_offset = 0;
+    if (d->scroll_offset != NULL)
+        scroll_offset = *d->scroll_offset;
+
+    if (scroll_offset < 0)
+        scroll_offset = 0;
+
+    set_draw_mode(DRAW_ADD);
+
     for (int col = 0; col < d->n_cols; col++) {
         int x = w->x + col * d->col_advance;
-        for (int row = 0; row < d->n_rows; row++) {
-            int y = w->y + row * d->row_advance;
-            static char cell_buff[32];
+        for (int r = 0; r < d->n_rows; r++) {
+            int y = w->y + r * d->row_advance;
+            if (y >= FB_HEIGHT)  // stop drawing when row is outside of framebuffer
+                break;
+
+            static char cell_buff[16];
             cell_buff[0] = '\0';
+
+            const int row = r == 0 ? 0 : r + scroll_offset;  // frozen row 0
+            // const int row = r + scroll_offset;  // row 0 scrolls with the other rows
+            if (row >= d->n_rows)
+                break;
+
             d->format_cell(row, col, cell_buff, sizeof(cell_buff));
             cell_buff[sizeof(cell_buff) - 1] = '\0';
+
             fnt_draw_text(x, y, cell_buff, sizeof(cell_buff), H_RIGHT | V_BASELINE);
         }
     }

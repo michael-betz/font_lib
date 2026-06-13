@@ -77,11 +77,11 @@ static const Screen slide2 = {slide2_widgets, 3};
 // ------------------
 //  Third slide
 // ------------------
-int p_values[] = {1253, 124, 0};
-int t_values[] = {2421, 2580, 0};
+int p_values[] = {1253, 124, 12, 24, 1};
+int t_values[] = {2421, 2580, 13, 25, 8};
 
 static void cell(int row, int col, char *buffer, const int buffer_size) {
-    const char *const l_labels[] = {"\x10Inlet", "Outlet", "Diff"};
+    const char *const l_labels[] = {"\020Inlet", "\020Outlet", "\020Diff", "\020Mult", "\020Bla"};
     switch (col) {
     case 0:
         if (row > 0)
@@ -103,8 +103,10 @@ static void cell(int row, int col, char *buffer, const int buffer_size) {
 }
 
 int scroll_pos = 0;
-static const Widget *const slide3_widgets[] = {W_GRID_VIEW(64, 14, cell, 4, 3, 15, 54),
-                                               W_V_SCROLL(200, 10, 48, 8, &scroll_pos, -4, 7)};
+static const Widget *const slide3_widgets[] = {
+    W_GRID_VIEW(64, 14, cell, 6, 4, 15, 54, &scroll_pos),
+    W_V_SCROLL(245, 10, 48, 8, &scroll_pos, 0, 3),
+};
 static const Screen slide3 = {slide3_widgets, 2};
 
 static const Screen *my_slides[] = {&slide1, &slide2, &slide3};

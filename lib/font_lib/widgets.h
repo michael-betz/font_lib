@@ -99,16 +99,19 @@ typedef struct {
     const int n_cols;
     const int row_advance;  // pixels between 2 rows
     const int col_advance;  // pixels between 2 columns
+    int *scroll_offset;
 } GridViewData;
 
 void draw_grid_view(const Widget *w, w_state_t state, unsigned event_flags);
 
-#define W_GRID_VIEW(_x, _y, _format_cell, _n_rows, _n_cols, _row_advance, _col_advance)            \
+#define W_GRID_VIEW(                                                                               \
+    _x, _y, _format_cell, _n_rows, _n_cols, _row_advance, _col_advance, _scroll_offset)            \
     &(Widget) {                                                                                    \
         .draw = draw_grid_view, .event = NULL, .x = (_x), .y = (_y), .selectable = false,          \
         .editable = false, .data = &(const GridViewData) {                                         \
             .format_cell = _format_cell, .n_rows = _n_rows, .n_cols = _n_cols,                     \
             .row_advance = _row_advance, .col_advance = _col_advance,                              \
+            .scroll_offset = _scroll_offset                                                        \
         }                                                                                          \
     }
 
