@@ -98,29 +98,17 @@ void event_setting(const Widget *w, uint32_t ev) {
 //  Non interactive widgets
 // -----------------------------
 
-// Table view with a label and multiple rows of data
-void draw_table_view(const Widget *w, w_state_t state, unsigned event_flags) {
-    const TableViewData *d = (const TableViewData *)w->data;
-
-    // Top label
-    bbox_t bbt = fnt_draw_text(w->x, w->y, d->top_label, 32, H_RIGHT | V_BASELINE);
-
-    int left = 0;
-    for (int i = 0; i < d->n_rows; i++) {
-        // Value
-        static char buf[32];
-        int y = w->y + (i + 1) * d->row_advance;
-        d->format_int(buf, d->values[i]);
-        fnt_init_from_header(d->font_value);
-        bbox_t bb = fnt_draw_text(w->x, y, buf, 32, H_RIGHT | V_BASELINE);
-
-        if (i == 0)
-            left = MIN(bb.left, bbt.left);
-
-        // Left labels
-        if (d->left_labels != NULL) {
-            fnt_init_from_header(d->font_left_label);
-            fnt_draw_text(left, y, d->left_labels[i], 32, H_RIGHT | V_BASELINE);
+void draw_grid_view(const Widget *w, w_state_t state, unsigned event_flags) {
+    const GridViewData *d = (const GridViewData *)w->data;
+    for (int col = 0; col < d->n_cols; col++) {
+        int x = w->x + col * d->col_advance;
+        for (int row = 0; row < d->n_rows; row++) {
+            int y = w->y + row * d->row_advance;
+            static char cell_buff[32];
+            cell_buff[0] = '\0';
+            d->format_cell(row, col, cell_buff, sizeof(cell_buff));
+            cell_buff[sizeof(cell_buff) - 1] = '\0';
+            fnt_draw_text(x, y, cell_buff, sizeof(cell_buff), H_RIGHT | V_BASELINE);
         }
     }
 }

@@ -88,38 +88,26 @@ void event_setting(const Widget *w, uint32_t ev);
         }                                                                                          \
     }
 
-// Table view with a label and multiple rows of data
+// A grid of cells. The format_cell() callback is called to get the content of each cell.
+// TODO: make this scrollable!
 typedef struct {
-    void (*format_int)(char *buffer, int val);  // Format val as string and write in buffer
+    void (*format_cell)(int row,
+                        int col,
+                        char *buffer,
+                        const int buffer_size);  // Write the content of a cell into buffer
     const int n_rows;
-    const int row_advance;  // line spacing between 2 rows
-    // Headline label
-    const char *top_label;
-    // array of n_rows elements, labels on the left, can be NULL
-    const char *const *left_labels;
-    // array of n_rows elements, values to print.
-    int *values;
-    const font_header_t *font_left_label;  // can be NULL
-    const font_header_t *font_value;       // can be NULL
-} TableViewData;
+    const int n_cols;
+    const int row_advance;  // pixels between 2 rows
+    const int col_advance;  // pixels between 2 columns
+} GridViewData;
 
-void draw_table_view(const Widget *w, w_state_t state, unsigned event_flags);
+void draw_grid_view(const Widget *w, w_state_t state, unsigned event_flags);
 
-#define W_TABLE_VIEW(_x,                                                                           \
-                     _y,                                                                           \
-                     _format_int,                                                                  \
-                     _n_rows,                                                                      \
-                     _row_advance,                                                                 \
-                     _top_label,                                                                   \
-                     _left_labels,                                                                 \
-                     _values,                                                                      \
-                     _font_left_label,                                                             \
-                     _font_value)                                                                  \
+#define W_GRID_VIEW(_x, _y, _format_cell, _n_rows, _n_cols, _row_advance, _col_advance)            \
     &(Widget) {                                                                                    \
-        .draw = draw_table_view, .event = NULL, .x = (_x), .y = (_y), .selectable = false,         \
-        .editable = false, .data = &(const TableViewData) {                                        \
-            .format_int = _format_int, .n_rows = _n_rows, .row_advance = _row_advance,             \
-            .top_label = _top_label, .left_labels = _left_labels, .values = _values,               \
-            .font_left_label = _font_left_label, .font_value = _font_value                         \
+        .draw = draw_grid_view, .event = NULL, .x = (_x), .y = (_y), .selectable = false,          \
+        .editable = false, .data = &(const GridViewData) {                                         \
+            .format_cell = _format_cell, .n_rows = _n_rows, .n_cols = _n_cols,                     \
+            .row_advance = _row_advance, .col_advance = _col_advance,                              \
         }                                                                                          \
     }

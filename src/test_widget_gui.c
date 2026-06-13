@@ -77,17 +77,33 @@ static const Screen slide2 = {slide2_widgets, 3};
 // ------------------
 //  Third slide
 // ------------------
-const char *const l_labels[] = {"Inlet", "Outlet", "Diff"};
 int p_values[] = {1253, 124, 0};
 int t_values[] = {2421, 2580, 0};
-void fmt_p(char *buffer, int val) { dec_dp(val, 5, 0, buffer); }
-void fmt_t(char *buffer, int val) { dec_dp(val, 5, 2, buffer); }
 
-static const Widget *const slide3_widgets[] = {
-    W_TABLE_VIEW(
-        125, 14, fmt_p, 3, 14, "\x10P [mbar]", l_labels, p_values, &f_monogram, &f_fixed_b),
-    W_TABLE_VIEW(200, 14, fmt_t, 3, 14, "\x10T [°C]", NULL, t_values, NULL, &f_fixed_b)};
-static const Screen slide3 = {slide3_widgets, 2};
+static void cell(int row, int col, char *buffer, const int buffer_size) {
+    const char *const l_labels[] = {"\x10Inlet", "Outlet", "Diff"};
+    switch (col) {
+    case 0:
+        if (row > 0)
+            strncpy(buffer, l_labels[row - 1], buffer_size);
+        break;
+    case 1:
+        if (row > 0)
+            dec_dp(p_values[row - 1], 5, 0, buffer);
+        else
+            strncpy(buffer, "\x10P [mbar]\x11", buffer_size);
+        break;
+    case 2:
+        if (row > 0)
+            dec_dp(t_values[row - 1], 5, 2, buffer);
+        else
+            strncpy(buffer, "\x10T [°C]\x11", buffer_size);
+        break;
+    }
+}
+
+static const Widget *const slide3_widgets[] = {W_GRID_VIEW(64, 14, cell, 4, 3, 15, 54)};
+static const Screen slide3 = {slide3_widgets, 1};
 
 static const Screen *my_slides[] = {&slide1, &slide2, &slide3};
 
