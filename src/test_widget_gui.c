@@ -46,7 +46,7 @@ unsigned get_event_flags(void) {
 //  First slide
 // ------------------
 // Example sensor callback
-static void get_temp_cb(char *buf) { sprintf(buf, "\x10Temp:\x11 %d\x10°C", frame % 150); }
+static void get_temp_cb(char *buf) { sprintf(buf, "\x12Temp:\x11 %d\x10°C", frame % 150); }
 
 static void button_cb(const Widget *w, uint32_t ev) {
     if (ev & EV_ENC_S)
@@ -55,13 +55,15 @@ static void button_cb(const Widget *w, uint32_t ev) {
 
 static bool state = false;
 static const Widget *const slide1_widgets[] = {
-    W_LABEL(128, 0, "\x16Test1\x10", H_MIDDLE | V_TOP),
-    W_DYNLBL(32, 20, get_temp_cb, H_LEFT | V_TOP),
-    W_CHECK_BOX(32, 48, "\x12Power enabled", &state),
-    W_BUTTON(148, 48, 2, "\x14Push me!", button_cb),
+    W_LABEL(64, 2, "\x16Test1\x10", H_MIDDLE | V_TOP),
+    W_DYNLBL(32, 29, get_temp_cb, H_LEFT | V_TOP),
+    W_CHECK_BOX(140, 12, "\x15LED", &state),
+    W_BUTTON(220, 12, 2, 50, "\024Red", button_cb),
+    W_BUTTON(220, 32, 2, 50, "\024Green", button_cb),
+    W_BUTTON(220, 52, 2, 50, "\024Blue", button_cb),
 };
 
-static const Screen slide1 = {slide1_widgets, 4};
+static const Screen slide1 = {slide1_widgets, 6};
 
 // ------------------
 //  Second slide

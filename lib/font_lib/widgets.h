@@ -13,6 +13,7 @@ typedef struct {
     const char *text;
     fnt_align_t align;
     int padding;
+    int width;
 } LblData;
 
 void draw_static_label(const Widget *w, w_state_t state, unsigned event_flags);
@@ -43,11 +44,11 @@ void draw_dyn_label(const Widget *w, w_state_t state, unsigned event_flags);
 
 // A button
 void draw_button(const Widget *w, w_state_t state, unsigned event_flags);
-#define W_BUTTON(_x, _y, _padding, _text, _event_cb)                                               \
+#define W_BUTTON(_x, _y, _padding, _width, _text, _event_cb)                                       \
     &(Widget) {                                                                                    \
         .draw = draw_button, .event = _event_cb, .x = (_x), .y = (_y), .selectable = true,         \
         .data = &(const LblData) {                                                                 \
-            .text = (_text), .padding = _padding                                                   \
+            .text = (_text), .padding = _padding, .width = _width, .align = H_MIDDLE | V_MIDDLE    \
         }                                                                                          \
     }
 
@@ -89,7 +90,6 @@ void event_setting(const Widget *w, uint32_t ev);
     }
 
 // A grid of cells. The format_cell() callback is called to get the content of each cell.
-// TODO: make this scrollable!
 typedef struct {
     void (*format_cell)(int row,
                         int col,
@@ -99,7 +99,7 @@ typedef struct {
     const int n_cols;
     const int row_advance;  // pixels between 2 rows
     const int col_advance;  // pixels between 2 columns
-    int *scroll_offset;
+    int *scroll_offset;  // to make it scroll, set to a position value from a W_V_SCROLL() or NULL
 } GridViewData;
 
 void draw_grid_view(const Widget *w, w_state_t state, unsigned event_flags);

@@ -5,6 +5,8 @@
 #include "widget_gui.h"
 #include <sys/param.h>
 
+#define C_FOC 0x88  // intensity value of cursor rectangle
+
 void draw_static_label(const Widget *w, w_state_t state, unsigned event_flags) {
     const LblData *d = (const LblData *)w->data;
     // state is ignored because it's never focused
@@ -21,14 +23,30 @@ void draw_dyn_label(const Widget *w, w_state_t state, unsigned event_flags) {
 void draw_button(const Widget *w, w_state_t state, unsigned event_flags) {
     const LblData *d = (const LblData *)w->data;
     int x = w->x, y = w->y;
-    bbox_t bb = fnt_draw_text(x, y, d->text, 32, H_LEFT | V_MIDDLE);
+    bbox_t bb;
+    if (state == W_FOCUSED && event_flags & 1) {
+        // When button is pushed, offset the text (but not the BB)
+        bb = fnt_draw_text(x + 1, y + 1, d->text, 32, d->align);
+        bb.left -= 1;
+        bb.right -= 1;
+        bb.top -= 1;
+        bb.bottom -= 1;
+    } else {
+        bb = fnt_draw_text(x, y, d->text, 32, d->align);
+    }
     bb = bb_add_spacing(bb, d->padding);
+
+    // Is width set? Then produce a fixed width button
+    if (d->width > 0) {
+        bb.left = x - d->width / 2;
+        bb.right = x + d->width / 2;
+    }
 
     set_draw_mode(DRAW_ADD);
     fill_rectangle_bb(bb, 0x33);
 
     if (state == W_FOCUSED)
-        draw_rectangle_rbb(bb_add_spacing(bb, 5), 4, 0xFF);
+        draw_rectangle_rbb(bb_add_spacing(bb, 4), 4, C_FOC);
 
     // WIN95 style shading
     set_draw_mode(DRAW_SET);
@@ -55,7 +73,7 @@ void draw_check_box(const Widget *w, w_state_t state, unsigned event_flags) {
     bbox_t bb = fnt_draw_text(w->x + 10, w->y, d->text, 32, H_LEFT | V_MIDDLE);
     bb.left -= 14;
     if (state == W_FOCUSED)
-        draw_rectangle_rbb(bb_add_spacing(bb, 4), 4, 0x88);
+        draw_rectangle_rbb(bb_add_spacing(bb, 4), 4, C_FOC);
 }
 void event_check_box(const Widget *w, uint32_t ev) {
     const CheckBoxData *d = (const CheckBoxData *)w->data;
@@ -71,7 +89,7 @@ void draw_setting(const Widget *w, w_state_t state, unsigned event_flags) {
 
     // Draw a nice rounded bounding box
     if (state == W_FOCUSED)
-        draw_rectangle_rbb(bb_add_spacing(bb, 4), 4, 0x88);
+        draw_rectangle_rbb(bb_add_spacing(bb, 4), 4, C_FOC);
     else if (state == W_EDITING) {
         set_draw_mode(DRAW_INV);
         fill_rectangle_rbb(bb_add_spacing(bb, 4), 4, 0xFF);
@@ -104,7 +122,7 @@ void draw_v_scroll(const Widget *w, w_state_t state, unsigned event_flags) {
 
     // Draw a nice rounded bounding box if focused
     if (state == W_FOCUSED || state == W_EDITING)
-        draw_rectangle_rbb(bb_add_spacing(bb, 3), 4, 0xFF);
+        draw_rectangle_rbb(bb_add_spacing(bb, 3), 4, C_FOC);
 
     const int n_steps = d->max_position - d->min_position;
     const int dy = (d->height - d->slider_height) * 256 / n_steps;
