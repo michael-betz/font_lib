@@ -46,7 +46,7 @@ unsigned get_event_flags(void) {
 //  First slide
 // ------------------
 // Example sensor callback
-static void get_temp_cb(char *buf) { sprintf(buf, "\x12Temp:\x11 %d\x10°C", frame % 150); }
+static void get_temp_cb(char *buf) { sprintf(buf, "\x10Temp: %d °C", frame % 150); }
 
 static void button_cb(const Widget *w, uint32_t ev) {
     if (ev & EV_ENC_S)
@@ -55,12 +55,12 @@ static void button_cb(const Widget *w, uint32_t ev) {
 
 static bool state = false;
 static const Widget *const slide1_widgets[] = {
-    W_LABEL(64, 2, "\x16Test1\x10", H_MIDDLE | V_TOP),
-    W_DYNLBL(32, 29, get_temp_cb, H_LEFT | V_TOP),
+    W_LABEL(64, 2, -1, -1, "\x16Test1", NULL, H_MIDDLE | V_TOP),
+    W_LABEL(64, 29, 150, 48, NULL, get_temp_cb, H_RIGHT | V_BOTTOM),
     W_CHECK_BOX(140, 12, "\x15LED", &state),
-    W_BUTTON(220, 12, 2, 50, "\024Red", button_cb),
-    W_BUTTON(220, 32, 2, 50, "\024Green", button_cb),
-    W_BUTTON(220, 52, 2, 50, "\024Blue", button_cb),
+    W_BUTTON(200, 4, 251, 4 + 13, "\024Red", button_cb),
+    W_BUTTON(200, 25, 251, 25 + 13, "\024Green", button_cb),
+    W_BUTTON(200, 46, 251, 46 + 13, "\024Blue", button_cb),
 };
 
 static const Screen slide1 = {slide1_widgets, 6};
@@ -70,7 +70,7 @@ static const Screen slide1 = {slide1_widgets, 6};
 // ------------------
 int fan_speed = 50, heater = 50;
 static const Widget *const slide2_widgets[] = {
-    W_LABEL(128, 2, "\x16 Fan Controls", H_MIDDLE | V_TOP),
+    W_LABEL(128, 2, -1, -1, "\x16 Fan Controls", NULL, H_MIDDLE | V_TOP),
     W_SETTING(32, 48, "\x11Speed\x15", &fan_speed, 0, 100, 10),
     W_SETTING(128, 48, "\x11Heater\x15", &heater, -50, 50, 5),
 };
@@ -82,31 +82,35 @@ static const Screen slide2 = {slide2_widgets, 3};
 int p_values[] = {1253, 124, 12, 24, 1};
 int t_values[] = {2421, 2580, 13, 25, 8};
 
-static void cell(int row, int col, char *buffer, const int buffer_size) {
+// return true if the cell should be redrawn (dynamic value)
+// return false if the cell is a static label
+static bool cell(int row, int col, char *buffer, const int buffer_size) {
     const char *const l_labels[] = {"\020Inlet", "\020Outlet", "\020Diff", "\020Mult", "\020Bla"};
     switch (col) {
     case 0:
         if (row > 0)
             strncpy(buffer, l_labels[row - 1], buffer_size);
-        break;
+        return false;
     case 1:
-        if (row > 0)
+        if (row > 0) {
             dec_dp(p_values[row - 1], 5, 0, buffer);
-        else
-            strncpy(buffer, "\x10P [mbar]\x11", buffer_size);
-        break;
+            return true;
+        }
+        strncpy(buffer, "\x10P [mbar]\x11", buffer_size);
+        return false;
     case 2:
-        if (row > 0)
+        if (row > 0) {
             dec_dp(t_values[row - 1], 5, 2, buffer);
-        else
-            strncpy(buffer, "\x10T [°C]\x11", buffer_size);
-        break;
+            return true;
+        }
+        strncpy(buffer, "\x10T [°C]\x11", buffer_size);
+        return false;
     }
 }
 
 int scroll_pos = 0;
 static const Widget *const slide3_widgets[] = {
-    W_GRID_VIEW(64, 14, cell, 6, 4, 15, 54, &scroll_pos),
+    W_GRID_VIEW(20, 14, cell, 6, 3, 15, 54, &scroll_pos),
     W_V_SCROLL(245, 10, 48, 8, &scroll_pos, 0, 3),
 };
 static const Screen slide3 = {slide3_widgets, 2};
@@ -130,8 +134,7 @@ void test_widget_gui(void) {
         gui_init(my_slides, 3);
     }
     set_draw_mode(DRAW_SET);
-    fill_rectangle(0, 0, 255, 63, 0);
-    gui_draw(frame == 0 || true);
+    gui_draw();
     p_values[0] += 1;
     p_values[1] -= 1;
     p_values[2] = p_values[0] - p_values[1];

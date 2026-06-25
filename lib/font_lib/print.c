@@ -18,14 +18,6 @@ static unsigned udec(uint32_t val, char *buf) {
     return ret;
 }
 
-static void dec(int32_t val, char *buf) {
-    if (val < 0) {
-        val = -val;
-        *buf++ = '-';
-    }
-    udec(val, buf);
-}
-
 // val 130, n 4
 // dp 0:   130
 // dp 1:  13.0

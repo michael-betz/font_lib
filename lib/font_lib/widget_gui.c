@@ -2,6 +2,7 @@
 #include "font.h"
 #include "frame_buffer.h"
 #include "graphics.h"
+#include "widgets.h"
 #include <stddef.h>
 #include <stdio.h>
 
@@ -55,14 +56,17 @@ static int get_shortcut_widget(const Screen *s) {
     return -1;
 }
 
-void gui_draw(bool force_draw) {
+void gui_draw(void) {
+    static unsigned frame = 0;
+
     if (slide_count == 0)
         return;
 
     unsigned ev = get_event_flags();
 
-    if (ev == 0 && force_draw == false)
-        return;
+    // add a dummy event to force screen redraw on first frame
+    if (frame++ == 0)
+        ev |= 0x80000000;
 
     const Screen *s = slides[cur_slide];
     const Widget *w = (s->count > 0) ? s->widgets[cur_focus] : NULL;
@@ -143,8 +147,10 @@ void gui_draw(bool force_draw) {
         break;
     }
 
-    // Draw all widgets on the screen
-    fill_rectangle(0, 0, 255, 63, 0);
+    // Draw widgets on the screen
+    // each widget is itself responsible for erasing the screen
+    if (ev != 0)
+        fill_rectangle(0, 0, 255, 63, 0);
     s = slides[cur_slide];
     for (uint8_t i = 0; i < s->count; i++) {
         w = s->widgets[i];
@@ -159,8 +165,11 @@ void gui_draw(bool force_draw) {
     }
 
     // Draw a tiny slide indicator at the left (e.g. dots)
+    if (ev == 0)
+        return;
     // if (mode != MODE_SLIDE)
     //     return;
+    set_draw_mode(DRAW_SET);
     int dot_w = slide_count * 8;
     int start_y = 32 - (dot_w / 2);
     draw_rectangle_r(

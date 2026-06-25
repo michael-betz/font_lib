@@ -68,15 +68,14 @@ typedef struct {
 // Text alignment and horizontal anchor point. Following Pillow Image Font conventions
 // https://pillow.readthedocs.io/en/stable/handbook/text-anchors.html#text-anchors
 // Combine one of H_* and one of V_* with |.
-// The default (0-value) corresponds to H_LEFT | V_BASELINE
 typedef enum {
-    H_LEFT = 0,
-    H_MIDDLE = 1,
-    H_RIGHT = 2,
-    V_BASELINE = (0 << 4),
+    H_LEFT = (1 << 0),
+    H_MIDDLE = (1 << 1),
+    H_RIGHT = (1 << 2),
+    V_BASELINE = (1 << 3),
     V_TOP = (1 << 4),
-    V_MIDDLE = (2 << 4),
-    V_BOTTOM = (3 << 4),
+    V_MIDDLE = (1 << 5),
+    V_BOTTOM = (1 << 6),
 } fnt_align_t;
 
 #ifdef FNT_SUPPORT

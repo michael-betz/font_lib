@@ -1,4 +1,5 @@
 #pragma once
+#include "graphics.h"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -46,7 +47,7 @@ struct Widget;
 typedef struct Widget {
     void (*draw)(const struct Widget *w, w_state_t state, unsigned event_flags);
     void (*event)(const struct Widget *w, uint32_t ev);  // NULL if not interactive
-    int x, y;
+    bbox_t bb;         // the bounding box of the widget, erased on redraw
     bool selectable;   // Set to false for labels without interaction
     bool editable;     // Set to false for buttons / check-boxes with direct action
     const void *data;  // Pointer to const ROM widget-specific data
@@ -64,7 +65,7 @@ typedef struct {
 void gui_init(const Screen *const *screens, uint8_t num_screens);
 
 // Render the current state to the framebuffer
-void gui_draw(bool force_draw);
+void gui_draw(void);
 
 // External interface. This needs to be implemented somewhere else...
 // returns the instantaneous state of the encoder and back button (in the 2 LSBs)

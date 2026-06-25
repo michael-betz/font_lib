@@ -512,11 +512,11 @@ static void set_x_cursor(const int x_a, const char *c, const unsigned n, fnt_ali
 
     cursor_x = x_a;
 
-    if ((align & 0x0F) == H_LEFT)
+    if (align & H_LEFT)
         cursor_x = x_a - bbox.left;
-    else if ((align & 0x0F) == H_RIGHT)
+    else if (align & H_RIGHT)
         cursor_x = x_a - bbox.right;
-    else if ((align & 0x0F) == H_MIDDLE)
+    else if (align & H_MIDDLE)
         cursor_x = x_a - (bbox.left + bbox.right) / 2;
 }
 
@@ -537,11 +537,11 @@ fnt_text(const int x_a, const int y_a, const char *c, unsigned n, fnt_align_t al
     bbox_t block_bounds = {0};
     fnt_get_bb(c, n, false, &block_bounds);
     cursor_y = y_a;
-    if ((align & 0xF0) == V_TOP)
+    if (align & V_TOP)
         cursor_y = y_a - block_bounds.top;
-    else if ((align & 0xF0) == V_BOTTOM)
+    else if (align & V_BOTTOM)
         cursor_y = y_a - block_bounds.bottom;
-    else if ((align & 0xF0) == V_MIDDLE)
+    else if (align & V_MIDDLE)
         cursor_y = y_a - (block_bounds.top + block_bounds.bottom) / 2;
 
     set_x_cursor(x_a, c, n, align);
