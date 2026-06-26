@@ -259,9 +259,6 @@ void draw_grid_view(const Widget *w, w_state_t state, unsigned event_flags) {
     }
 }
 
-#define N_FRAC 11
-#define LERP(a, b, t) ((a) + (((b) - (a)) * (t) >> N_FRAC))
-
 void draw_trend_view(const Widget *w, w_state_t state, unsigned event_flags) {
     const TrendViewData *d = (const TrendViewData *)w->data;
 
@@ -285,41 +282,42 @@ void draw_trend_view(const Widget *w, w_state_t state, unsigned event_flags) {
         sum_value += d->y_data[i];
     }
 
-    // Find a offset and scale factor to fit the data into the pixels
-    // max_value * scale + offset = top
-    // min_value * scale + offset = bottom
-    // scale = (top - bottom) / (max_value - min_value)
-    // offset = bottom - min_value * scale
-
     // Avoid division by 0
     if (max_value == min_value) {
         min_value--;
         max_value++;
     }
 
-    const int scale = ((w->bb.top - w->bb.bottom) << N_FRAC) / (max_value - min_value);
-    const int offset = (w->bb.bottom << N_FRAC) - min_value * scale;
+    // Pre-calculate some values
+    int delta_y = max_value - min_value;
+    int height = w->bb.top - w->bb.bottom;
+    int denom_x = d->n_points - 1;
+    int width = w->bb.right - w->bb.left;
 
+    // Initialize the read-pointer
     unsigned rp = 0;
     if (d->wp != NULL)
         rp = *d->wp;
 
-    // Plot some horizontal lines
+    // Plot some horizontal grid-lines
     draw_hline(w->bb.left, w->bb.right, w->bb.top, 0x40);
     draw_hline(w->bb.left, w->bb.right, (w->bb.top + w->bb.bottom + 1) / 2, 0x40);
     draw_hline(w->bb.left, w->bb.right, w->bb.bottom, 0x40);
 
     // Plot the lines
-    set_draw_mode(DRAW_ADD);
-    for (int i = 0; i < d->n_points; i++) {
-        static int last_x, last_y;
-        int x = LERP(w->bb.left << N_FRAC, w->bb.right << N_FRAC, (i << N_FRAC) / d->n_points);
-        int y = scale * (int)(d->y_data[rp]) + offset;
-        rp = (rp + 1) % d->n_points;
+    set_draw_mode(DRAW_SET);
+    int last_x = -1, last_y = -1;
+    int min_y = 0, max_y = 0;
+    int prev_last_y = -1;
 
-        // Round and remove fractional part
-        x = (x + (1 << N_FRAC) / 2) >> N_FRAC;
-        y = (y + (1 << N_FRAC) / 2) >> N_FRAC;
+    for (int i = 0; i < d->n_points; i++) {
+        // calculate x and y from data-point
+        int x = w->bb.left + (width * i + denom_x / 2) / denom_x;
+        int val = d->y_data[rp] - min_value;
+        int y = w->bb.bottom + (int)((val * height - (delta_y / 2)) / delta_y);
+
+        // Increment read-pointer
+        rp = (rp + 1) % d->n_points;
 
         if (i > 0)
             draw_line(last_x, last_y, x, y);
@@ -329,7 +327,7 @@ void draw_trend_view(const Widget *w, w_state_t state, unsigned event_flags) {
     }
 
     // Print the labels
-    fnt_draw_printf(w->bb.left, w->bb.top, H_LEFT | V_TOP, "\020%d", max_value);
+    fnt_draw_printf(w->bb.left, w->bb.top, H_LEFT | V_TOP, "%d", max_value);
     fnt_draw_printf(w->bb.left,
                     (w->bb.top + w->bb.bottom + 1) / 2,
                     H_LEFT | V_MIDDLE,

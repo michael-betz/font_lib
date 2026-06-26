@@ -81,9 +81,9 @@ static const Screen slide2 = {slide2_widgets, 3};
 //  Third slide
 // ------------------
 int p_values[] = {1253, 124, 12, 24, 1};
-int t_values[] = {1000, 2580, 13, 25, 8};
+int t_values[] = {100, 2580, 13, 25, 8};
 
-#define N_HISTORY 800
+#define N_HISTORY 200
 static int16_t t_history[N_HISTORY] = {0};
 static unsigned t_history_wp = 0;
 

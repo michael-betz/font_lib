@@ -39,6 +39,16 @@ static void test_pattern() {
         fill_ellipse(x, 130, i, i, 0x4, 0xA0);
         fill_ellipse(x, 145, i, i, 0x8, 0xA0);
     }
+
+    // Make sure all quadrants work
+    draw_line(300, 16, 350, 16);
+    draw_line(350, 24, 300, 24);
+
+    draw_line(325 - 8, 8, 325 - 8, 32);
+    draw_line(325 + 8, 32, 325 + 8, 8);
+
+    draw_line(300, 8, 350, 32);
+    draw_line(350, 8, 300, 32);
 }
 
 void test_graphics(void) {

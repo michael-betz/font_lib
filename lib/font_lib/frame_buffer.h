@@ -62,11 +62,21 @@ void fill(uint8_t shade);
 
 // Optimization potential: set several pixels at once (memset)
 static inline void draw_hline(int x0, int x1, int y, uint8_t value) {
+    if (x0 > x1) {
+        int tmp = x1;
+        x1 = x0;
+        x0 = tmp;
+    }
     for (int x = x0; x <= x1; x++)
         pixel_ptr(x, y, value);
 }
 
 static inline void draw_vline(int x, int y0, int y1, uint8_t value) {
+    if (y0 > y1) {
+        int tmp = y1;
+        y1 = y0;
+        y0 = tmp;
+    }
     for (int y = y0; y <= y1; y++)
         pixel_ptr(x, y, value);
 }
