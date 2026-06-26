@@ -5,6 +5,7 @@
 #include "print.h"
 #include "widgets.h"
 #include <SDL2/SDL.h>
+#include <stdint.h>
 #include <stdio.h>
 
 extern const font_header_t f_fixed;
@@ -80,7 +81,11 @@ static const Screen slide2 = {slide2_widgets, 3};
 //  Third slide
 // ------------------
 int p_values[] = {1253, 124, 12, 24, 1};
-int t_values[] = {2421, 2580, 13, 25, 8};
+int t_values[] = {1000, 2580, 13, 25, 8};
+
+#define N_HISTORY 800
+static int16_t t_history[N_HISTORY] = {0};
+static unsigned t_history_wp = 0;
 
 // return true if the cell should be redrawn (dynamic value)
 // return false if the cell is a static label
@@ -111,11 +116,16 @@ static bool cell(int row, int col, char *buffer, const int buffer_size) {
 int scroll_pos = 0;
 static const Widget *const slide3_widgets[] = {
     W_GRID_VIEW(20, 14, cell, 6, 3, 15, 54, &scroll_pos),
-    W_V_SCROLL(245, 10, 48, 8, &scroll_pos, 0, 3),
+    W_V_SCROLL(245, 5, 58, 8, &scroll_pos, 0, 3),
 };
 static const Screen slide3 = {slide3_widgets, 2};
 
-static const Screen *my_slides[] = {&slide1, &slide2, &slide3};
+static const Widget *const slide4_widgets[] = {
+    W_TREND_VIEW(20, 4, 250, 60, 0, N_HISTORY, t_history, &t_history_wp),
+};
+static const Screen slide4 = {slide4_widgets, 1};
+
+static const Screen *my_slides[] = {&slide1, &slide2, &slide3, &slide4};
 
 void test_widget_gui(void) {
     if (frame == 0) {
@@ -131,16 +141,26 @@ void test_widget_gui(void) {
             &f_vollkorn,  // 6
         };
         fnt_set_table(fnt_table, 7);
-        gui_init(my_slides, 3);
+        gui_init(my_slides, 4);
     }
     set_draw_mode(DRAW_SET);
     gui_draw();
+
+    set_draw_mode(DRAW_SET);
+    draw_rectangle(-1, -1, 256, 64, 0x80);
+
     p_values[0] += 1;
     p_values[1] -= 1;
     p_values[2] = p_values[0] - p_values[1];
-    t_values[0] -= 1;
-    t_values[1] += 1;
+
+    for (int i = 0; i < 2; i++)
+        t_values[i] += random() & 1 ? 1 : -1;
     t_values[2] = t_values[0] - t_values[1];
+
+    // if (frame < 100) {
+    t_history[t_history_wp] = t_values[0];
+    t_history_wp = (t_history_wp + 1) % N_HISTORY;
+    // }
 
     frame++;
 }

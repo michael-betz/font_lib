@@ -124,25 +124,21 @@ void event_v_scroll(const Widget *w, uint32_t ev);
         }                                                                                          \
     }
 
-// // A trend-line plot
-// typedef struct {
-//     const int width;
-//     const int height;
-//     const int n_lines;
-//     const int interval_ms;
-//     const int y_min;
-//     const int y_max;
-//     int *data;  // array of size data[n_lines] with the latest data-point
-// } TrendViewData;
+// A trend-line plot
+typedef struct {
+    const int interval_ms;
+    const uint16_t n_points;
+    unsigned *wp;           // write pointer for rolling mode, can be NULL
+    const int16_t *y_data;  // array of size data[n_points][n_lines]
+} TrendViewData;
 
-// void draw_trend_view(const Widget *w, w_state_t state, unsigned event_flags);
+void draw_trend_view(const Widget *w, w_state_t state, unsigned event_flags);
 
-// #define W_TREND_VIEW(_x, _y, _width, _height, _n_lines, _interval_ms, _y_min, _y_max, _data) \
-//     &(Widget) { \
-//         .draw = draw_trend_view, .event = NULL, .x = (_x), .y = (_y), .selectable = false, \
-//         .editable = false, .data = &(const TrendViewData) { \
-//             .width = _width, .height = _height, .n_lines = _n_lines, .interval_ms = _interval_ms,
-//             \
-//             .y_min = _y_min, .y_max = _y_max, .data = _data, \
-//         } \
-//     }
+#define W_TREND_VIEW(_x0, _y0, _x1, _y1, _interval_ms, _n_points, _y_data, _wp)                    \
+    &(Widget) {                                                                                    \
+        .draw = draw_trend_view, .event = NULL, .bb.left = (_x0), .bb.top = (_y0),                 \
+        .bb.right = _x1, .bb.bottom = _y1, .selectable = false, .editable = false,                 \
+        .data = &(const TrendViewData) {                                                           \
+            .interval_ms = _interval_ms, .n_points = _n_points, .y_data = _y_data, .wp = _wp       \
+        }                                                                                          \
+    }

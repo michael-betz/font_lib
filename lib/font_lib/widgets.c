@@ -178,7 +178,9 @@ void draw_v_scroll(const Widget *w, w_state_t state, unsigned event_flags) {
     bbox_t bb = w->bb;
     bb.right = bb.left + width;
 
-    draw_rectangle_bb(bb, state == W_EDITING ? 0xA0 : 0x40);
+    set_draw_mode(DRAW_SET);
+
+    draw_rectangle_bb(bb, state == W_EDITING ? 0xF0 : 0x40);
 
     // Draw a nice rounded bounding box if focused
     if (state == W_FOCUSED || state == W_EDITING)
@@ -192,7 +194,7 @@ void draw_v_scroll(const Widget *w, w_state_t state, unsigned event_flags) {
                    bb.top + y0 + 1,
                    bb.right - 1,
                    bb.top + y0 + d->slider_height - 1,
-                   state == W_EDITING ? 0xFF : 0x40);
+                   state == W_EDITING ? 0xF0 : 0x40);
 }
 
 void event_v_scroll(const Widget *w, uint32_t ev) {
@@ -257,14 +259,81 @@ void draw_grid_view(const Widget *w, w_state_t state, unsigned event_flags) {
     }
 }
 
-// void draw_trend_view(const Widget *w, w_state_t state, unsigned event_flags) {
-//     const TrendViewData *d = (const TrendViewData *)w->data;
+#define N_FRAC 11
+#define LERP(a, b, t) ((a) + (((b) - (a)) * (t) >> N_FRAC))
 
-//     static unsigned last_ts = 0;
-//     unsigned ts = millis();
+void draw_trend_view(const Widget *w, w_state_t state, unsigned event_flags) {
+    const TrendViewData *d = (const TrendViewData *)w->data;
 
-//     if (ts - last_ts > d->interval_ms) {
-//         last_ts = ts;
-//     }
-//     fill_rectangle(w->x, w->y, w->x + d->width, w->y + d->height, 0);
-// }
+    // static unsigned last_ts = 0;
+    // unsigned ts = millis();
+    // if (ts - last_ts > d->interval_ms && event_flags == 0)
+    //     return;
+    // last_ts = ts;
+    set_draw_mode(DRAW_SET);
+    fill_rectangle_bb(w->bb, 0);
+
+    // Find the min, max and sum-value
+    int min_value, max_value, sum_value = 0;
+    for (int i = 0; i < d->n_points; i++) {
+        if (i == 0)
+            min_value = max_value = d->y_data[0];
+        else if (d->y_data[i] > max_value)
+            max_value = d->y_data[i];
+        else if (d->y_data[i] < min_value)
+            min_value = d->y_data[i];
+        sum_value += d->y_data[i];
+    }
+
+    // Find a offset and scale factor to fit the data into the pixels
+    // max_value * scale + offset = top
+    // min_value * scale + offset = bottom
+    // scale = (top - bottom) / (max_value - min_value)
+    // offset = bottom - min_value * scale
+
+    // Avoid division by 0
+    if (max_value == min_value) {
+        min_value--;
+        max_value++;
+    }
+
+    const int scale = ((w->bb.top - w->bb.bottom) << N_FRAC) / (max_value - min_value);
+    const int offset = (w->bb.bottom << N_FRAC) - min_value * scale;
+
+    unsigned rp = 0;
+    if (d->wp != NULL)
+        rp = *d->wp;
+
+    // Plot some horizontal lines
+    draw_hline(w->bb.left, w->bb.right, w->bb.top, 0x40);
+    draw_hline(w->bb.left, w->bb.right, (w->bb.top + w->bb.bottom + 1) / 2, 0x40);
+    draw_hline(w->bb.left, w->bb.right, w->bb.bottom, 0x40);
+
+    // Plot the lines
+    set_draw_mode(DRAW_ADD);
+    for (int i = 0; i < d->n_points; i++) {
+        static int last_x, last_y;
+        int x = LERP(w->bb.left << N_FRAC, w->bb.right << N_FRAC, (i << N_FRAC) / d->n_points);
+        int y = scale * (int)(d->y_data[rp]) + offset;
+        rp = (rp + 1) % d->n_points;
+
+        // Round and remove fractional part
+        x = (x + (1 << N_FRAC) / 2) >> N_FRAC;
+        y = (y + (1 << N_FRAC) / 2) >> N_FRAC;
+
+        if (i > 0)
+            draw_line(last_x, last_y, x, y);
+
+        last_x = x;
+        last_y = y;
+    }
+
+    // Print the labels
+    fnt_draw_printf(w->bb.left, w->bb.top, H_LEFT | V_TOP, "\020%d", max_value);
+    fnt_draw_printf(w->bb.left,
+                    (w->bb.top + w->bb.bottom + 1) / 2,
+                    H_LEFT | V_MIDDLE,
+                    "%d",
+                    sum_value / d->n_points);
+    fnt_draw_printf(w->bb.left, w->bb.bottom, H_LEFT | V_BOTTOM, "%d", min_value);
+}

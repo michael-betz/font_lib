@@ -148,9 +148,9 @@ void gui_draw(void) {
     }
 
     // Draw widgets on the screen
-    // each widget is itself responsible for erasing the screen
+    // Only erase the screen when ui-board events were received
     if (ev != 0)
-        fill_rectangle(0, 0, 255, 63, 0);
+        fill(0);
     s = slides[cur_slide];
     for (uint8_t i = 0; i < s->count; i++) {
         w = s->widgets[i];
