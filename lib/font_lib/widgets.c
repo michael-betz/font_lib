@@ -2,7 +2,10 @@
 #include "font.h"
 #include "frame_buffer.h"
 #include "graphics.h"
+#include "print.h"
 #include "widget_gui.h"
+#include <stdint.h>
+#include <stdio.h>
 #include <sys/param.h>
 
 #define C_FOC 0x88  // intensity value of cursor rectangle
@@ -259,27 +262,26 @@ void draw_grid_view(const Widget *w, w_state_t state, unsigned event_flags) {
     }
 }
 
-void draw_trend_view(const Widget *w, w_state_t state, unsigned event_flags) {
-    const TrendViewData *d = (const TrendViewData *)w->data;
+void draw_plot(const Widget *w, w_state_t state, unsigned event_flags) {
+    const PlotData *d = (const PlotData *)w->data;
 
-    // static unsigned last_ts = 0;
-    // unsigned ts = millis();
-    // if (ts - last_ts > d->interval_ms && event_flags == 0)
-    //     return;
-    // last_ts = ts;
     set_draw_mode(DRAW_SET);
     fill_rectangle_bb(w->bb, 0);
 
-    // Find the min, max and sum-value
+    // Find the min, max and sum-value over all lines
     int min_value, max_value, sum_value = 0;
-    for (int i = 0; i < d->n_points; i++) {
-        if (i == 0)
-            min_value = max_value = d->y_data[0];
-        else if (d->y_data[i] > max_value)
-            max_value = d->y_data[i];
-        else if (d->y_data[i] < min_value)
-            min_value = d->y_data[i];
-        sum_value += d->y_data[i];
+    for (int l = 0; l < d->n_lines; l++) {
+        const int16_t *y_data = d->y_data[l];
+
+        for (int i = 0; i < d->n_points; i++) {
+            if (i == 0 && l == 0)
+                min_value = max_value = y_data[0];
+            else if (y_data[i] > max_value)
+                max_value = y_data[i];
+            else if (y_data[i] < min_value)
+                min_value = y_data[i];
+            sum_value += y_data[i];
+        }
     }
 
     // Avoid division by 0
@@ -288,50 +290,66 @@ void draw_trend_view(const Widget *w, w_state_t state, unsigned event_flags) {
         max_value++;
     }
 
-    // Pre-calculate some values
-    int delta_y = max_value - min_value;
-    int height = w->bb.top - w->bb.bottom;
-    int denom_x = d->n_points - 1;
-    int width = w->bb.right - w->bb.left;
-
     // Initialize the read-pointer
     unsigned rp = 0;
     if (d->wp != NULL)
         rp = *d->wp;
 
     // Plot some horizontal grid-lines
-    draw_hline(w->bb.left, w->bb.right, w->bb.top, 0x40);
-    draw_hline(w->bb.left, w->bb.right, (w->bb.top + w->bb.bottom + 1) / 2, 0x40);
-    draw_hline(w->bb.left, w->bb.right, w->bb.bottom, 0x40);
+    draw_hline(w->bb.left, w->bb.right, w->bb.top, 0x10);
+    draw_hline(w->bb.left, w->bb.right, (w->bb.top + w->bb.bottom + 1) / 2, 0x10);
+    draw_hline(w->bb.left, w->bb.right, w->bb.bottom, 0x10);
+
+    // Pre-calculate some values
+    int delta_y = max_value - min_value;
+    int height = w->bb.top - w->bb.bottom;
+    int denom_x = d->n_points - 1;
+    int width = w->bb.right - w->bb.left;
+    int last_x = -1, last_y = -1;
 
     // Plot the lines
-    set_draw_mode(DRAW_SET);
-    int last_x = -1, last_y = -1;
-    int min_y = 0, max_y = 0;
-    int prev_last_y = -1;
+    for (int l = 0; l < d->n_lines; l++) {
+        const int16_t *y_data = d->y_data[l];
+        unsigned rp_ = rp;  // use local read-pointer
 
-    for (int i = 0; i < d->n_points; i++) {
-        // calculate x and y from data-point
-        int x = w->bb.left + (width * i + denom_x / 2) / denom_x;
-        int val = d->y_data[rp] - min_value;
-        int y = w->bb.bottom + (int)((val * height - (delta_y / 2)) / delta_y);
+        for (int i = 0; i < d->n_points; i++) {
+            // calculate x and y from data-point
+            int x = w->bb.left + (width * i + denom_x / 2) / denom_x;
+            int val = y_data[rp_] - min_value;
+            int y = w->bb.bottom + (int)((val * height - (delta_y / 2)) / delta_y);
 
-        // Increment read-pointer
-        rp = (rp + 1) % d->n_points;
+            // Increment read-pointer
+            rp_ = (rp_ + 1) % d->n_points;
 
-        if (i > 0)
-            draw_line(last_x, last_y, x, y);
+            if (i > 0 && d->do_lines)
+                draw_line(last_x, last_y, x, y);
+            else
+                set_pixel(x, y, 0xff);
 
-        last_x = x;
-        last_y = y;
+            last_x = x;
+            last_y = y;
+        }
     }
 
     // Print the labels
-    fnt_draw_printf(w->bb.left, w->bb.top, H_LEFT | V_TOP, "%d", max_value);
-    fnt_draw_printf(w->bb.left,
-                    (w->bb.top + w->bb.bottom + 1) / 2,
-                    H_LEFT | V_MIDDLE,
-                    "%d",
-                    sum_value / d->n_points);
-    fnt_draw_printf(w->bb.left, w->bb.bottom, H_LEFT | V_BOTTOM, "%d", min_value);
+    char buf[32];
+
+    if (d->format_label != NULL)
+        d->format_label(max_value, buf, sizeof(buf));
+    else
+        snprintf(buf, sizeof(buf), "%d", max_value);
+    fnt_draw_text(w->bb.left, w->bb.top, buf, sizeof(buf), H_LEFT | V_TOP);
+
+    if (d->format_label != NULL)
+        d->format_label((max_value + min_value) / 2, buf, sizeof(buf));
+    else
+        snprintf(buf, sizeof(buf), "%d", (max_value + min_value) / 2);
+    fnt_draw_text(
+        w->bb.left, (w->bb.top + w->bb.bottom + 1) / 2, buf, sizeof(buf), H_LEFT | V_MIDDLE);
+
+    if (d->format_label != NULL)
+        d->format_label(min_value, buf, sizeof(buf));
+    else
+        snprintf(buf, sizeof(buf), "%d", min_value);
+    fnt_draw_text(w->bb.left, w->bb.bottom, buf, sizeof(buf), H_LEFT | V_BOTTOM);
 }

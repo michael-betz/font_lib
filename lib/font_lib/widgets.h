@@ -126,19 +126,23 @@ void event_v_scroll(const Widget *w, uint32_t ev);
 
 // A trend-line plot
 typedef struct {
-    const int interval_ms;
-    const uint16_t n_points;
-    unsigned *wp;           // write pointer for rolling mode, can be NULL
-    const int16_t *y_data;  // array of size data[n_points][n_lines]
-} TrendViewData;
+    const bool do_lines;      // Draw lines (true) or pixels?
+    const uint16_t n_points;  // How many points to plot
+    const uint16_t n_lines;   // How many lines to plot (y_data[n_lines])
+    const int16_t *x_data;    // NULL: plot as time-series or array of n_points for XY plot
+    unsigned *wp;             // current write pointer for rolling mode, can be NULL
+    const int16_t **y_data;   // each of the n_lines elements is a pointer to an array of n_points
+    void (*format_label)(int16_t value, char *buffer, const int buffer_size);
+} PlotData;
 
-void draw_trend_view(const Widget *w, w_state_t state, unsigned event_flags);
+void draw_plot(const Widget *w, w_state_t state, unsigned event_flags);
 
-#define W_TREND_VIEW(_x0, _y0, _x1, _y1, _interval_ms, _n_points, _y_data, _wp)                    \
+#define W_PLOT(                                                                                    \
+    _x0, _y0, _x1, _y1, _do_lines, _n_points, _n_lines, _x_data, _wp, _y_data, _format_label)      \
     &(Widget) {                                                                                    \
-        .draw = draw_trend_view, .event = NULL, .bb.left = (_x0), .bb.top = (_y0),                 \
-        .bb.right = _x1, .bb.bottom = _y1, .selectable = false, .editable = false,                 \
-        .data = &(const TrendViewData) {                                                           \
-            .interval_ms = _interval_ms, .n_points = _n_points, .y_data = _y_data, .wp = _wp       \
+        .draw = draw_plot, .event = NULL, .bb.left = (_x0), .bb.top = (_y0), .bb.right = _x1,      \
+        .bb.bottom = _y1, .selectable = false, .editable = false, .data = &(const PlotData) {      \
+            .do_lines = _do_lines, .n_points = _n_points, .n_lines = _n_lines, .x_data = _x_data,  \
+            .wp = _wp, .y_data = _y_data, .format_label = _format_label                            \
         }                                                                                          \
     }

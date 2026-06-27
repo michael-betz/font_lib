@@ -44,7 +44,7 @@ unsigned get_event_flags(void) {
 }
 
 // ------------------
-//  First slide
+//  First slide: Buttons
 // ------------------
 // Example sensor callback
 static void get_temp_cb(char *buf) { sprintf(buf, "\x10Temp: %d °C", frame % 150); }
@@ -67,7 +67,7 @@ static const Widget *const slide1_widgets[] = {
 static const Screen slide1 = {slide1_widgets, 6};
 
 // ------------------
-//  Second slide
+//  Second slide: Choosers
 // ------------------
 int fan_speed = 50, heater = 50;
 static const Widget *const slide2_widgets[] = {
@@ -78,13 +78,13 @@ static const Widget *const slide2_widgets[] = {
 static const Screen slide2 = {slide2_widgets, 3};
 
 // ------------------
-//  Third slide
+//  Third slide: Table
 // ------------------
-int p_values[] = {1253, 124, 12, 24, 1};
-int t_values[] = {100, 2580, 13, 25, 8};
+int p_values[5] = {1253, 124, 12, 24, 1};
+int t_values[5] = {1000, 1110, 1010, 1180, 1230};
 
 #define N_HISTORY 200
-static int16_t t_history[N_HISTORY] = {0};
+static int16_t t_history[5][N_HISTORY] = {0};
 static unsigned t_history_wp = 0;
 
 // return true if the cell should be redrawn (dynamic value)
@@ -120,8 +120,18 @@ static const Widget *const slide3_widgets[] = {
 };
 static const Screen slide3 = {slide3_widgets, 2};
 
+// --------------------------
+//  Fourth slide: Trend plot
+// --------------------------
+
+const int16_t *lines[] = {t_history[0], t_history[1], t_history[2], t_history[3], t_history[4]};
+
+void format_label(int16_t value, char *buffer, const int buffer_size) {
+    dec_dp(value, 4, 2, buffer);
+}
+
 static const Widget *const slide4_widgets[] = {
-    W_TREND_VIEW(20, 4, 250, 60, 0, N_HISTORY, t_history, &t_history_wp),
+    W_PLOT(20, 4, 250, 60, true, N_HISTORY, 5, NULL, &t_history_wp, lines, format_label),
 };
 static const Screen slide4 = {slide4_widgets, 1};
 
@@ -153,14 +163,11 @@ void test_widget_gui(void) {
     p_values[1] -= 1;
     p_values[2] = p_values[0] - p_values[1];
 
-    for (int i = 0; i < 2; i++)
+    for (int i = 0; i < 5; i++) {
         t_values[i] += random() & 1 ? 1 : -1;
-    t_values[2] = t_values[0] - t_values[1];
-
-    // if (frame < 100) {
-    t_history[t_history_wp] = t_values[0];
+        t_history[i][t_history_wp] = t_values[i];
+    }
     t_history_wp = (t_history_wp + 1) % N_HISTORY;
-    // }
 
     frame++;
 }
