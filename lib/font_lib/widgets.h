@@ -96,7 +96,7 @@ void draw_grid_view(const Widget *w, w_state_t state, unsigned event_flags);
 #define W_GRID_VIEW(                                                                               \
     _x, _y, _format_cell, _n_rows, _n_cols, _row_advance, _col_advance, _scroll_offset)            \
     &(Widget) {                                                                                    \
-        .draw = draw_grid_view, .event = NULL, .bb.left = (_x), .bb.bottom = (_y),                 \
+        .draw = draw_grid_view, .event = NULL, .bb.left = (_x), .bb.top = (_y),                    \
         .selectable = false, .editable = false, .data = &(const GridViewData) {                    \
             .format_cell = _format_cell, .n_rows = _n_rows, .n_cols = _n_cols,                     \
             .row_advance = _row_advance, .col_advance = _col_advance,                              \
@@ -131,18 +131,29 @@ typedef struct {
     const uint16_t n_lines;   // How many lines to plot (y_data[n_lines])
     const int16_t *x_data;    // NULL: plot as time-series or array of n_points for XY plot
     unsigned *wp;             // current write pointer for rolling mode, can be NULL
+    unsigned *n_valid;        // Number of valid points in rolling mode, can be NULL
     const int16_t **y_data;   // each of the n_lines elements is a pointer to an array of n_points
     void (*format_label)(int16_t value, char *buffer, const int buffer_size);
 } PlotData;
 
 void draw_plot(const Widget *w, w_state_t state, unsigned event_flags);
 
-#define W_PLOT(                                                                                    \
-    _x0, _y0, _x1, _y1, _do_lines, _n_points, _n_lines, _x_data, _wp, _y_data, _format_label)      \
+#define W_PLOT(_x0,                                                                                \
+               _y0,                                                                                \
+               _x1,                                                                                \
+               _y1,                                                                                \
+               _do_lines,                                                                          \
+               _n_points,                                                                          \
+               _n_lines,                                                                           \
+               _x_data,                                                                            \
+               _wp,                                                                                \
+               _n_valid,                                                                           \
+               _y_data,                                                                            \
+               _format_label)                                                                      \
     &(Widget) {                                                                                    \
         .draw = draw_plot, .event = NULL, .bb.left = (_x0), .bb.top = (_y0), .bb.right = _x1,      \
         .bb.bottom = _y1, .selectable = false, .editable = false, .data = &(const PlotData) {      \
             .do_lines = _do_lines, .n_points = _n_points, .n_lines = _n_lines, .x_data = _x_data,  \
-            .wp = _wp, .y_data = _y_data, .format_label = _format_label                            \
+            .wp = _wp, .n_valid = _n_valid, .y_data = _y_data, .format_label = _format_label       \
         }                                                                                          \
     }

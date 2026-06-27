@@ -68,10 +68,12 @@ void draw_button(const Widget *w, w_state_t state, unsigned event_flags) {
     if (event_flags == 0 && d->format_value == NULL)
         return;
 
+    // If optional right and bottom borders are not given, measure the text
     bbox_t bb = w->bb;
+    if (bb.right < 0 || bb.bottom < 0)
+        bb = fnt_measure_text(bb.left, bb.top, d->text, 32, H_MIDDLE | V_MIDDLE);
 
     // Draw text (always centered)
-    set_draw_mode(DRAW_ADD);
     int txt_x = (bb.left + bb.right + 1) / 2;
     int txt_y = (bb.top + bb.bottom + 1) / 2;
     // Move text down a bit if encoder is pushed
@@ -79,6 +81,7 @@ void draw_button(const Widget *w, w_state_t state, unsigned event_flags) {
         txt_x++;
         txt_y++;
     }
+    set_draw_mode(DRAW_ADD);
     fnt_draw_text(txt_x, txt_y, d->text, 32, H_MIDDLE | V_MIDDLE);
 
     // Draw rounded rectangle, if selected
@@ -268,19 +271,35 @@ void draw_plot(const Widget *w, w_state_t state, unsigned event_flags) {
     set_draw_mode(DRAW_SET);
     fill_rectangle_bb(w->bb, 0);
 
+    // Find number of valid points
+    unsigned n_valid = d->n_points;
+    if (d->n_valid != NULL && *d->n_valid < n_valid)
+        n_valid = *d->n_valid;
+    // number of invalid points to skip
+    unsigned n_skip = d->n_points - n_valid;
+
+    // Initialize the read-pointer
+    unsigned rp = 0;
+    if (d->wp != NULL)
+        rp = *d->wp;
+    rp = (rp + n_skip) % d->n_points;
+
     // Find the min, max and sum-value over all lines
-    int min_value, max_value, sum_value = 0;
+    int min_value = 0, max_value = 0, sum_value = 0;
     for (int l = 0; l < d->n_lines; l++) {
         const int16_t *y_data = d->y_data[l];
+        unsigned rp_ = rp;  // local read-pointer
 
-        for (int i = 0; i < d->n_points; i++) {
+        for (int i = 0; i < n_valid; i++) {
             if (i == 0 && l == 0)
-                min_value = max_value = y_data[0];
-            else if (y_data[i] > max_value)
-                max_value = y_data[i];
-            else if (y_data[i] < min_value)
-                min_value = y_data[i];
-            sum_value += y_data[i];
+                min_value = max_value = y_data[rp_];
+            else if (y_data[rp_] > max_value)
+                max_value = y_data[rp_];
+            else if (y_data[rp_] < min_value)
+                min_value = y_data[rp_];
+            sum_value += y_data[rp_];
+            // Increment read-pointer
+            rp_ = (rp_ + 1) % d->n_points;
         }
     }
 
@@ -289,11 +308,6 @@ void draw_plot(const Widget *w, w_state_t state, unsigned event_flags) {
         min_value--;
         max_value++;
     }
-
-    // Initialize the read-pointer
-    unsigned rp = 0;
-    if (d->wp != NULL)
-        rp = *d->wp;
 
     // Plot some horizontal grid-lines
     draw_hline(w->bb.left, w->bb.right, w->bb.top, 0x10);
@@ -310,11 +324,11 @@ void draw_plot(const Widget *w, w_state_t state, unsigned event_flags) {
     // Plot the lines
     for (int l = 0; l < d->n_lines; l++) {
         const int16_t *y_data = d->y_data[l];
-        unsigned rp_ = rp;  // use local read-pointer
+        unsigned rp_ = rp;  // local read-pointer
 
-        for (int i = 0; i < d->n_points; i++) {
+        for (int i = 0; i < n_valid; i++) {
             // calculate x and y from data-point
-            int x = w->bb.left + (width * i + denom_x / 2) / denom_x;
+            int x = w->bb.left + (width * (i + n_skip) + denom_x / 2) / denom_x;
             int val = y_data[rp_] - min_value;
             int y = w->bb.bottom + (int)((val * height - (delta_y / 2)) / delta_y);
 
@@ -338,7 +352,7 @@ void draw_plot(const Widget *w, w_state_t state, unsigned event_flags) {
         d->format_label(max_value, buf, sizeof(buf));
     else
         snprintf(buf, sizeof(buf), "%d", max_value);
-    fnt_draw_text(w->bb.left, w->bb.top, buf, sizeof(buf), H_LEFT | V_TOP);
+    fnt_draw_text(w->bb.left, w->bb.top + 1, buf, sizeof(buf), H_LEFT | V_TOP);
 
     if (d->format_label != NULL)
         d->format_label((max_value + min_value) / 2, buf, sizeof(buf));
