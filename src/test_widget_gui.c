@@ -131,7 +131,7 @@ void format_label(int16_t value, char *buffer, const int buffer_size) {
 }
 
 static const Widget *const slide4_widgets[] = {
-    W_PLOT(20, 4, 250, 60, true, N_HISTORY, 5, NULL, &t_history_wp, lines, format_label),
+    W_PLOT(20, 4, 250, 60, true, N_HISTORY, 5, NULL, &t_history_wp, NULL, lines, format_label),
 };
 static const Screen slide4 = {slide4_widgets, 1};
 

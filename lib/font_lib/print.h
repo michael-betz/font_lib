@@ -16,8 +16,8 @@ void dec_dp(int32_t val, const uint8_t n, const uint8_t dp, char *buf);
 
 // Write a fixed point fractional number to buf
 // with `nFract` fractional bits and print only `nDigits` after the .
-void udec_fix(uint32_t val, const uint8_t nFract, uint8_t nDigits, char *buf);
-void dec_fix(int32_t val, const uint8_t nFract, uint8_t nDigits, char *buf);
+char *udec_fix(uint32_t val, const uint8_t nFract, uint8_t nDigits, char *buf);
+char *dec_fix(int32_t val, const uint8_t nFract, uint8_t nDigits, char *buf);
 
 // Write a hex number to buf
-void udec_hex(uint32_t val, uint8_t digits, char *buf);
+char *udec_hex(uint32_t val, uint8_t digits, char *buf);

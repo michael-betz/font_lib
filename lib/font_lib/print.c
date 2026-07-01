@@ -63,7 +63,7 @@ void dec_dp(int32_t val, const uint8_t n, const uint8_t dp, char *buf) {
     }
 }
 
-void udec_fix(uint32_t val, const uint8_t nFract, uint8_t nDigits, char *buf) {
+char *udec_fix(uint32_t val, const uint8_t nFract, uint8_t nDigits, char *buf) {
     uint32_t fractMask = ((1 << nFract) - 1);  // mask the fractional part
     unsigned ret = udec(val >> nFract, buf);   // Print the integer part
     buf += ret;
@@ -74,21 +74,23 @@ void udec_fix(uint32_t val, const uint8_t nFract, uint8_t nDigits, char *buf) {
         *buf++ = '0' + (val >> nFract);  // Print digit
         val &= fractMask;                // Convert to fractional part
     }
-    *buf++ = '\0';
+    *buf = '\0';
+    return buf;
 }
 
-void dec_fix(int32_t val, const uint8_t nFract, uint8_t nDigits, char *buf) {
+char *dec_fix(int32_t val, const uint8_t nFract, uint8_t nDigits, char *buf) {
     if (val < 0) {
         *buf++ = '-';
         val = -val;
     } else {
         *buf++ = ' ';
     }
-    udec_fix(val, nFract, nDigits, buf);
+    return udec_fix(val, nFract, nDigits, buf);
 }
 
-void udec_hex(uint32_t val, uint8_t digits, char *buf) {
+char *udec_hex(uint32_t val, uint8_t digits, char *buf) {
     for (int i = (4 * digits) - 4; i >= 0; i -= 4)
         *buf++ = "0123456789ABCDEF"[(val >> i) % 16];
-    *buf++ = '\0';
+    *buf = '\0';
+    return buf;
 }
